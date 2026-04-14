@@ -1,0 +1,86 @@
+{
+  // Multi-agent OpenClaw configuration.
+  // Three agents on one gateway, each with isolated workspace and sessions.
+  // Telegram channel with pairing-based DM access.
+
+  gateway: {
+    mode: "local",
+    bind: "lan",
+    auth: {
+      mode: "token",
+      token: "CHANGE_ME"
+    }
+  },
+
+  session: {
+    dmScope: "per-channel-peer"
+  },
+
+  agents: {
+    defaults: {
+      model: {
+        primary: "anthropic/claude-sonnet-4-5"
+      },
+      heartbeat: {
+        every: "30m",
+        target: "last",
+        lightContext: true
+      }
+    },
+    list: [
+      {
+        id: "main",
+        default: true,
+        name: "Assistant",
+        workspace: "~/.openclaw/workspace-main"
+      },
+      {
+        id: "coding",
+        name: "Coder",
+        workspace: "~/.openclaw/workspace-coding",
+        model: {
+          primary: "anthropic/claude-sonnet-4-5"
+        }
+      },
+      {
+        id: "analyst",
+        name: "Analyst",
+        workspace: "~/.openclaw/workspace-analyst",
+        model: {
+          primary: "anthropic/claude-sonnet-4-5"
+        }
+      }
+    ]
+  },
+
+  // Route Telegram to the main agent by default.
+  // Add per-peer or per-account bindings to route to other agents.
+  bindings: [
+    { agentId: "main", match: { channel: "telegram" } }
+  ],
+
+  tools: {
+    fs: {
+      workspaceOnly: true
+    },
+    exec: {
+      security: "ask",
+      ask: "always"
+    },
+    elevated: {
+      enabled: false
+    }
+  },
+
+  channels: {
+    telegram: {
+      enabled: true,
+      dmPolicy: "pairing",
+      groups: {
+        "*": {
+          requireMention: true
+        }
+      }
+    }
+  }
+}
