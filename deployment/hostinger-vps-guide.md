@@ -120,9 +120,12 @@ services:
 ```yaml
     ports:
       - "127.0.0.1:${OPENCLAW_GATEWAY_PORT:-18789}:18789"
+      - "127.0.0.1:${OPENCLAW_BRIDGE_PORT:-18790}:18790"
 ```
 
 Leave everything else in the file unchanged.
+
+**Why two layers?** `OPENCLAW_GATEWAY_BIND=lan` tells the gateway to listen on all interfaces *inside the container* — this is required so Docker's port-forwarding can reach it (setting it to `loopback` inside Docker breaks host-published access, per the [OpenClaw Docker docs](https://docs.openclaw.ai/install/docker#lan-vs-loopback-docker-compose)). The `127.0.0.1:` prefix on the host-side port mapping is what actually keeps the port off the public internet. Both layers matter: without the prefix, Docker publishes the port on `0.0.0.0` regardless of the internal bind.
 
 ## Step 6: Build the Image
 
@@ -230,7 +233,7 @@ tailscale up
 
 Follow the printed URL to authenticate the device. Install Tailscale on your laptop as well and join the same network. Note the VPS **Tailscale IP** (e.g., `100.x.y.z`).
 
-Remove the `127.0.0.1:` prefix from the `ports` line in `docker-compose.yml` and restart with `docker compose up -d`. The loopback restriction blocks Tailscale traffic too, so it needs to go. With UFW (below), only your Tailscale network can reach the port.
+Remove the `127.0.0.1:` prefix from both `ports` lines in `docker-compose.yml` and restart with `docker compose up -d`. That prefix restricts Docker's port forwarding to the host's loopback interface, which blocks Tailscale traffic too, so it needs to go. With UFW (below), only your Tailscale network can reach the port.
 
 Access the Control UI directly, no tunnel needed:
 

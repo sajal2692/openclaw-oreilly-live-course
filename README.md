@@ -15,7 +15,7 @@ openclaw_course_code/
       (skills/ added when dev-coupled skills are built)
     data-analyst/
       (skills/ added when analytics-coupled skills are built)
-  deployment/          VPS deployment templates (Dockerfile, compose, .env, configs)
+  deployment/          VPS deployment guide and environment template
   security/            Insecure vs hardened config comparison
   automation/          Cron and webhook examples
     cron/
@@ -38,16 +38,12 @@ Each demo in the live course pulls from one or more of the folders above. This t
 | # | Demo | Module | Uses |
 |---|---|---|---|
 | 1 | OpenClaw in Action | M1 | `workspaces/personal-assistant` |
-| 2 | VPS Setup Retrospective | M2 | `deployment/` |
-| 3 | Control UI / Dashboard Walkthrough | M2 | (live, no shared assets) |
-| 4 | Connect a Messaging Channel | M2 | (live, no shared assets) |
-| 5 | Customize a Workspace | M3 | `workspaces/personal-assistant` |
-| 6 | Build a Custom Skill | M3 | TBD (skill to be decided; will live under the relevant workspace's `skills/`) |
-| 7 | Workspace Archetypes Showcase | M3 | `workspaces/*` |
-| 8 | Security Pitfalls (Live Attack) | M4 | `security/openclaw-insecure.json` + `workspaces/personal-assistant` |
-| 9 | Configure Guardrails | M4 | `security/openclaw-hardened.json` |
-| 10 | Cron-Driven Daily Briefing | M4 | `automation/cron/` + `workspaces/personal-assistant` |
-| 11 | Closing Archetypes Recap | M4 | `workspaces/*` |
+| 2 | VPS Retrospective + Dashboard Deep Dive | M2 | `deployment/` |
+| 3 | Context Files Walkthrough | M3 | `workspaces/personal-assistant` |
+| 4 | Bring Over a New Skill | M3 | `workspaces/personal-assistant/skills/rental-search` |
+| 5 | Security Pitfalls (Live Attack) | M4 | `security/openclaw-insecure.json` + `workspaces/personal-assistant` |
+| 6 | Configure Guardrails | M4 | `security/openclaw-hardened.json` |
+| 7 | Cron-Driven Daily Briefing | M4 | `automation/cron/` + `workspaces/personal-assistant` |
 
 ## Folder Reference
 
@@ -55,20 +51,20 @@ Each demo in the live course pulls from one or more of the folders above. This t
 
 Each subfolder is a complete, runnable OpenClaw agent workspace. Drop one into `~/.openclaw/workspace/` (or wire as a multi-agent binding) and the agent boots with that persona, those skills, and that PKM scaffolding.
 
-- **`personal-assistant/`** — Butler-style daily-driver. File-based PKM (tasks, daily notes, weekly reviews, projects, freeform notes, reading tracker). Bundled skills: `notes-tasks`, `daily-briefing`, `nightly-review`, `weekly-review`, `books-tracker`. Used as the running example throughout the course.
+- **`personal-assistant/`** — Butler-style daily-driver. File-based PKM (tasks, daily notes, weekly reviews, projects, freeform notes, reading tracker). Bundled skills: `notes-tasks`, `daily-briefing`, `nightly-review`, `weekly-review`, `books-tracker`, `rental-search`. Used as the running example throughout the course.
 - **`coding-agent/`** — Developer-focused assistant. Code review, git workflow, testing patterns.
 - **`data-analyst/`** — Analytical, data-focused. Pandas, SQL, charting workflows.
 
 ### `deployment/`
 
-Everything you need to deploy OpenClaw on a VPS.
+Take-home resources for deploying OpenClaw on a VPS. The Dockerfile and docker-compose.yml live in the OpenClaw repo itself; this folder provides the guide and environment template.
 
-- **`Dockerfile`** — Container image with baked binaries
-- **`docker-compose.yml`** — Gateway service definition
+- **`hostinger-vps-guide.md`** — Step-by-step take-home VPS deployment guide (manual walkthrough and fast-path script)
 - **`.env.template`** — Required environment variables (placeholder values)
-- **`openclaw-hardened.json`** — Security-baseline gateway config
-- **`openclaw-multi-agent.json`** — Multi-agent routing example
-- **`hostinger-vps-guide.md`** — Step-by-step take-home VPS deployment guide
+
+**Other deployment paths** (not covered in this repo but discussed in the course):
+- **[Hostinger one-click](https://www.hostinger.com/vps/docker/openclaw):** Hostinger offers an OpenClaw VPS template that provisions a ready-to-go instance. No SSH or Docker knowledge needed.
+- **Fast-path script:** The OpenClaw repo ships `docker-setup.sh`, which automates image build, token generation, onboarding, and gateway start. The deployment guide covers this as an alternative to the manual steps.
 
 ### `security/`
 
