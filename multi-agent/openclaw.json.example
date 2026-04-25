@@ -2,7 +2,7 @@
   // Multi-agent gateway config (Demo 7 reference).
   //
   // Two agents on one gateway, each bound to its own Telegram bot:
-  //   - alfred: butler persona (personal-assistant workspace) on @alfred_bot
+  //   - alfred: personal assistant persona (personal-assistant workspace) on @alfred_bot
   //   - coder:  engineer persona (coding-agent workspace) on @coder_bot
   //
   // Before using:

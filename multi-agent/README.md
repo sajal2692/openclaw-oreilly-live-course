@@ -6,7 +6,7 @@ Two agents on one gateway, each bound to its own Telegram bot. This is the confi
 
 ```
 Telegram @alfred_*_bot  ─┐
-                         ├──>  OpenClaw Gateway  ──┬── agent: alfred (butler persona)
+                         ├──>  OpenClaw Gateway  ──┬── agent: alfred (personal assistant persona)
 Telegram @coder_*_bot   ─┘                         └── agent: coder (engineer persona)
 ```
 
@@ -85,7 +85,7 @@ You should see both `alfred` and `coder` agents, each with its Telegram binding.
 
 ## Try it out
 
-- DM `@alfred_*_bot` → butler replies in measured, formal tone.
+- DM `@alfred_*_bot` → personal assistant replies in measured, formal tone.
 - DM `@coder_*_bot` → terse engineer replies focused on code.
 
 The two agents do not share memory, sessions, or personas. They just share a gateway process and an LLM provider configuration.

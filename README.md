@@ -7,7 +7,7 @@ Course materials for the O'Reilly live course on building, deploying, customizin
 ```
 openclaw_course_code/
   workspaces/           Pre-built agent personas (one folder per archetype)
-    personal-assistant/   Alfred — butler persona with full PKM + bundled skills
+    personal-assistant/   Alfred — personal assistant persona with full PKM + bundled skills
     coding-agent/         Coder — minimal engineer persona (Demo 7)
   deployment/          Take-home VPS deployment guide
   multi-agent/         Multi-agent config variant (Demo 7)
@@ -38,7 +38,7 @@ The live demos run against a VPS prepared before the course. The artifacts below
 
 Each subfolder is a complete, runnable OpenClaw workspace. Drop one into `~/.openclaw/workspace/` (single-agent) or wire it as an `agentId` under `agents.list[]` (multi-agent) and the agent boots with that persona, those skills, and that PKM scaffolding.
 
-- **`personal-assistant/`** — Butler-style daily-driver ("Alfred"). File-based PKM (tasks, daily notes, weekly reviews, projects, freeform notes, reading tracker). Bundled skills: `notes-tasks`, `daily-briefing`, `nightly-review`, `weekly-review`, `books-tracker`, `rental-search`. Used as the running example throughout Modules 1 through 6.
+- **`personal-assistant/`** — Daily-driver personal assistant ("Alfred"). File-based PKM (tasks, daily notes, weekly reviews, projects, freeform notes, reading tracker). Bundled skills: `notes-tasks`, `daily-briefing`, `nightly-review`, `weekly-review`, `books-tracker`, `rental-search`. Used as the running example throughout Modules 1 through 6.
 - **`coding-agent/`** — Minimal engineer persona ("Coder"). Direct, terse, code-focused. Workspace holds one or more cloned git repos and the agent operates inside them. Bundled skills: `create-pr` (drafts title + summary/changes/test-plan body from the branch diff and runs `gh pr create`), `review-code` (structured review with Blockers / Suggestions / Nits / What's good sections, file-line references, review-only by default). Used as the second agent in the Module 4 multi-agent demo.
 
 ### `deployment/`
