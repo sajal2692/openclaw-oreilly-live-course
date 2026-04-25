@@ -11,7 +11,6 @@ openclaw_course_code/
     coding-agent/         Coder — minimal engineer persona (Demo 7)
   deployment/          Take-home VPS deployment guide
   multi-agent/         Multi-agent config variant (Demo 7)
-  demo_runbooks/       Step-by-step runbook for each live demo
   README.md            (this file)
 ```
 
@@ -21,17 +20,17 @@ The default topology is **one agent, one channel, one workspace**. That is what 
 
 ## Demo Index
 
-Each demo has a runbook in `demo_runbooks/` and may pull assets from other folders. The live demos run against a VPS prepared before the course; the artifacts below are what you can take home and reproduce yourself.
+The live demos run against a VPS prepared before the course. The artifacts below are what you can take home and reproduce yourself.
 
-| # | Demo | Module | Runbook | Key Files |
-|---|---|---|---|---|
-| 1 | OpenClaw in Action | M1 | [`demo_1_personal_assistant.md`](demo_runbooks/demo_1_personal_assistant.md) | [`workspaces/personal-assistant/`](workspaces/personal-assistant/) |
-| 2 | VPS Deployment + Dashboard | M2 | [`demo_2_vps_and_dashboard.md`](demo_runbooks/demo_2_vps_and_dashboard.md) | [`deployment/hostinger-vps-guide.md`](deployment/hostinger-vps-guide.md) |
-| 3 | Context Files Walkthrough | M3 | [`demo_3_context_files.md`](demo_runbooks/demo_3_context_files.md) | [`workspaces/personal-assistant/SOUL.md`](workspaces/personal-assistant/SOUL.md), [`IDENTITY.md`](workspaces/personal-assistant/IDENTITY.md), [`USER.md`](workspaces/personal-assistant/USER.md), [`AGENTS.md`](workspaces/personal-assistant/AGENTS.md), [`TOOLS.md`](workspaces/personal-assistant/TOOLS.md) |
-| 4 | Adding a Custom Skill | M3 | [`demo_4_bring_over_skill.md`](demo_runbooks/demo_4_bring_over_skill.md) | [`workspaces/personal-assistant/skills/rental-search/`](workspaces/personal-assistant/skills/rental-search/) |
-| 5 | Security Pitfalls + Guardrails | M4 | [`demo_5_security_pitfalls_and_guardrails.md`](demo_runbooks/demo_5_security_pitfalls_and_guardrails.md) | Live VPS demo (no repo artifact) |
-| 6 | Proactive Automation (Cron + Heartbeat) | M4 | [`demo_6_proactive_automation.md`](demo_runbooks/demo_6_proactive_automation.md) | Live VPS config walk (no repo artifact) |
-| 7 | Multi-Agent Personas | M4 | [`demo_7_multi_agent_personas.md`](demo_runbooks/demo_7_multi_agent_personas.md) | [`multi-agent/openclaw.json.example`](multi-agent/openclaw.json.example), [`workspaces/personal-assistant/`](workspaces/personal-assistant/), [`workspaces/coding-agent/`](workspaces/coding-agent/) |
+| # | Demo | Module | Key Files |
+|---|---|---|---|
+| 1 | OpenClaw in Action | M1 | [`workspaces/personal-assistant/`](workspaces/personal-assistant/) |
+| 2 | VPS Deployment + Dashboard | M2 | [`deployment/hostinger-vps-guide.md`](deployment/hostinger-vps-guide.md) |
+| 3 | Context Files Walkthrough | M3 | [`workspaces/personal-assistant/SOUL.md`](workspaces/personal-assistant/SOUL.md), [`IDENTITY.md`](workspaces/personal-assistant/IDENTITY.md), [`USER.md`](workspaces/personal-assistant/USER.md), [`AGENTS.md`](workspaces/personal-assistant/AGENTS.md), [`TOOLS.md`](workspaces/personal-assistant/TOOLS.md) |
+| 4 | Adding a Custom Skill | M3 | [`workspaces/personal-assistant/skills/rental-search/`](workspaces/personal-assistant/skills/rental-search/) |
+| 5 | Security Pitfalls + Guardrails | M4 | Live VPS demo (no repo artifact) |
+| 6 | Proactive Automation (Cron + Heartbeat) | M4 | Live VPS config walk (no repo artifact) |
+| 7 | Multi-Agent Personas | M4 | [`multi-agent/openclaw.json.example`](multi-agent/openclaw.json.example), [`workspaces/personal-assistant/`](workspaces/personal-assistant/), [`workspaces/coding-agent/`](workspaces/coding-agent/) |
 
 ## Folder reference
 
@@ -60,10 +59,6 @@ Configuration variant for hosting multiple agents on one gateway. Used in the Mo
 
 - `openclaw.json.example` — Full annotated gateway config (two agents, two bindings, two Telegram accounts)
 - `README.md` — What this is, how it differs from the default single-agent setup, and step-by-step instructions to run it yourself. Env vars are shared with the single-agent setup; see `deployment/.env.template` and add a second Telegram bot token alongside the first.
-
-### `demo_runbooks/`
-
-One runbook per live demo. Each runbook follows the same structure: Goals, Pre-flight Checklist, Demo Flow (step-by-step with narration), Timing, Failure Modes, and Post-Demo Notes. These are primarily for the instructor's delivery, but students can read them after the course to see exactly what was demonstrated and how to reproduce it.
 
 ## A note on skill scopes
 
@@ -102,7 +97,7 @@ The 5-hour live course is structured into four modules. The repository is organi
 - **Module 3:** The OpenClaw Workspace — Tailoring Your Agent
 - **Module 4:** Security, Automation, and Real-World Workflows
 
-See the Demo Index above for which runbooks and artifacts each module uses.
+See the Demo Index above for which artifacts each module uses.
 
 ## Resources
 
