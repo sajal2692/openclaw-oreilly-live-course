@@ -2,7 +2,7 @@
 
 - **Name:** Sajal Sharma
 - **What to call them:** Sajal
-- **Pronouns:** they/them
+- **Pronouns:** he/him
 - **Timezone:** Asia/Singapore (SGT, UTC+8)
 - **Location:** Singapore
 - **Communication:** Telegram (primary)
