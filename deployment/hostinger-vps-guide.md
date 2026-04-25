@@ -6,7 +6,8 @@ A step-by-step guide to getting OpenClaw running 24/7 on a Hostinger VPS with Do
 
 - A persistent OpenClaw Gateway running on your own VPS
 - Docker-based deployment that survives reboots
-- Secure remote access via SSH tunnel
+- Secure remote access via SSH tunnel (base path)
+- Optional: HTTPS through Tailscale Serve with tokenless tailnet auth (recommended)
 
 ## Prerequisites
 
@@ -72,7 +73,14 @@ The `chown` sets ownership to uid 1000, which matches the container's internal u
 cd ~/openclaw
 ```
 
-Create a `.env` file in the repository root. The course repo provides a fully commented starter at `deployment/.env.template` you can copy from (or use the snippet below directly):
+Create a `.env` file in the repository root. The course repo provides a fully commented starter at [`deployment/.env.template`](https://github.com/sajal2692/openclaw-oreilly-live-course/blob/main/openclaw_course_code/deployment/.env.template) you can pull onto the VPS:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/sajal2692/openclaw-oreilly-live-course/main/openclaw_course_code/deployment/.env.template -o .env
+nano .env
+```
+
+Or skip the template and create `.env` from scratch:
 
 ```bash
 nano .env
@@ -87,6 +95,11 @@ OPENCLAW_GATEWAY_BIND=lan
 OPENCLAW_GATEWAY_PORT=18789
 OPENCLAW_CONFIG_DIR=/root/.openclaw
 OPENCLAW_WORKSPACE_DIR=/root/.openclaw/workspace
+```
+
+Optional, only if you plan to install the `gog` companion CLI (Gmail / Google Calendar skills, not covered in this course):
+
+```
 GOG_KEYRING_PASSWORD=<generate with: openssl rand -hex 32>
 ```
 
@@ -122,6 +135,8 @@ services:
       - "127.0.0.1:${OPENCLAW_GATEWAY_PORT:-18789}:18789"
       - "127.0.0.1:${OPENCLAW_BRIDGE_PORT:-18790}:18790"
 ```
+
+Port `18789` is the gateway's main WebSocket and Control UI endpoint. Port `18790` is the channel-bridge port used by some channel adapters; harmless to keep, and binding it to loopback as well keeps it off the public internet.
 
 Leave everything else in the file unchanged.
 
@@ -193,9 +208,175 @@ Then open in your browser:
 http://localhost:18789/
 ```
 
-Paste your gateway token when prompted. You should see the OpenClaw Control UI with WebChat.
+Paste your gateway token when prompted. This is the value of `OPENCLAW_GATEWAY_TOKEN` from `.env`. You should see the OpenClaw Control UI with WebChat.
 
 Send a message via WebChat. If the agent responds, your deployment is working end-to-end (model auth from Step 7 + gateway from Step 8 + Control UI access from Step 9).
+
+## Recommended: Tailscale Serve for HTTPS and Tokenless Auth
+
+The SSH tunnel approach in Step 9 works, but Tailscale Serve gives you HTTPS, tokenless dashboard auth via tailnet identity, and removes the need to keep an SSH tunnel running. This is also the configuration used on the demo VPS for the live course.
+
+[Tailscale](https://tailscale.com) (free tier) creates a private WireGuard mesh between your devices. **Tailscale Serve** proxies HTTPS traffic from your tailnet hostname to a loopback port on the VPS — so the gateway stays bound to loopback, and Tailscale handles encryption, identity, and routing.
+
+### Step T1: Install Tailscale and enable HTTPS
+
+On the VPS (as root):
+
+```bash
+curl -fsSL https://tailscale.com/install.sh | sh
+tailscale up
+```
+
+Follow the printed URL to authenticate the device. Install Tailscale on your laptop as well and join the same tailnet. Note the VPS's **MagicDNS hostname** (e.g., `my-vps.tail-xxxx.ts.net`); you can find it in the Tailscale admin console or by running `tailscale status` on the VPS.
+
+In the [Tailscale admin console](https://login.tailscale.com/admin/dns), enable **HTTPS Certificates** for your tailnet (DNS settings, "Enable HTTPS" toggle). Tailscale will provision a Let's Encrypt cert for your MagicDNS hostname.
+
+### Step T2: Switch the gateway to host networking
+
+In `docker-compose.yml`, the `openclaw-gateway` service needs three changes from the Step 5 layout:
+
+1. Replace the `ports:` block with `network_mode: host` (so the container shares the host's network namespace and "loopback inside the container" is the same as `127.0.0.1` on the host).
+2. Bind-mount the Tailscale CLI and socket so the gateway can call `tailscale whois` to verify the tailnet identity of incoming requests.
+3. Change the `openclaw-cli` service from `network_mode: "service:openclaw-gateway"` to `network_mode: host` so it joins the same host namespace.
+
+```yaml
+  openclaw-gateway:
+    image: ${OPENCLAW_IMAGE:-openclaw:local}
+    build: .
+    env_file:
+      - .env
+    network_mode: host    # replaces the `ports:` block from Step 5
+    volumes:
+      - ${OPENCLAW_CONFIG_DIR}:/home/node/.openclaw
+      - ${OPENCLAW_WORKSPACE_DIR}:/home/node/.openclaw/workspace
+      - /var/run/tailscale:/var/run/tailscale       # add
+      - /usr/bin/tailscale:/usr/bin/tailscale:ro    # add
+    # ... rest of service unchanged; remove the `ports:` block entirely
+```
+
+Apply change #3 to the `openclaw-cli` block as well:
+
+```yaml
+  openclaw-cli:
+    image: ${OPENCLAW_IMAGE:-openclaw:local}
+    network_mode: host    # was: network_mode: "service:openclaw-gateway"
+    # ... rest of service unchanged
+```
+
+Both Tailscale bind-mounts are safe to add: the Tailscale socket is `0666` and the binary is a statically linked Go executable.
+
+### Step T3: Switch the gateway bind mode to loopback
+
+In `.env`, change:
+
+```
+OPENCLAW_GATEWAY_BIND=loopback
+```
+
+With host networking, `loopback` means the host's `127.0.0.1`. The gateway is no longer reachable from any non-loopback interface — only Tailscale Serve can proxy to it.
+
+### Step T4: Enable tokenless tailnet auth
+
+Edit `/root/.openclaw/openclaw.json` and merge the fields below into the existing `gateway` block. Do not paste over the whole file: `openclaw.json` already has many other keys (model auth, agents, channels) that must stay intact. If you have a coding agent like Claude Code or Cursor handy, ask it to merge these fields into the existing file. Otherwise, edit by hand and add only the new keys (`auth.allowTailscale`, `controlUi.allowedOrigins`, `trustedProxies`) without disturbing what is already there.
+
+Replace the hostname in `allowedOrigins` with your own MagicDNS hostname (with `https://` and no trailing slash). For example, if `tailscale status` shows `my-vps.tail-a1b2.ts.net`, the origin is `https://my-vps.tail-a1b2.ts.net`.
+
+```json
+{
+  "gateway": {
+    "auth": {
+      "mode": "token",
+      "token": "<your existing token>",
+      "allowTailscale": true
+    },
+    "controlUi": {
+      "allowedOrigins": [
+        "https://my-vps.tail-a1b2.ts.net"
+      ]
+    },
+    "trustedProxies": ["127.0.0.1/32", "::1/128"]
+  }
+}
+```
+
+What each piece does:
+
+- `auth.allowTailscale: true` lets the gateway accept Tailscale identity headers (`tailscale-user-login`) instead of a token, but only when the request arrived via Tailscale Serve (loopback socket plus Tailscale's forwarded headers, verified against `tailscale whois`). The gateway token is still kept for non-browser clients (CLI, channels).
+- `controlUi.allowedOrigins` is a strict allowlist; the dashboard refuses WebSocket upgrades whose `Origin` header is not on the list. Add your tailnet HTTPS URL.
+- `trustedProxies` tells the gateway that 127.0.0.1 is a trusted proxy (Tailscale Serve, running on the same host). Without this, the gateway logs a "proxy headers from untrusted address" warning on every Serve request.
+
+### Step T5: Restart the gateway and start Tailscale Serve
+
+```bash
+cd ~/openclaw
+docker compose up -d --force-recreate openclaw-gateway
+tailscale serve --bg --https=443 http://127.0.0.1:18789
+tailscale serve status
+```
+
+`--force-recreate` ensures the gateway container is rebuilt with the new `network_mode: host` and the Tailscale bind-mounts. Without it, compose sometimes keeps the old container if it thinks the service definition has not changed.
+
+The status output should look like:
+
+```
+https://<hostname>.<tailnet>.ts.net (tailnet only)
+|-- / proxy http://127.0.0.1:18789
+```
+
+> Tailscale Serve persists across reboots once configured this way. As an alternative, OpenClaw can manage Serve itself by setting `gateway.tailscale.mode: "serve"` in `openclaw.json`; the manual command above is shown here because it makes the proxy chain visible and easy to inspect with `tailscale serve status`.
+
+### Step T6: Approve the first device pairing
+
+Open `https://<hostname>.<tailnet>.ts.net/` in your browser. You will see a "pairing required" prompt — this is expected on the first connection from any new browser.
+
+Approve it once from inside the gateway container:
+
+```bash
+docker compose exec openclaw-gateway openclaw devices pending
+docker compose exec openclaw-gateway openclaw devices approve <requestId>
+```
+
+Reload the browser tab. You should land in the Control UI directly, no token prompt — your tailnet identity authenticates the connection, and the device is now paired.
+
+**Why pairing is required:** OpenClaw's dashboard binds to the browser's persistent device identity (a key pair stored in IndexedDB). Tokenless tailnet auth replaces only the *shared-secret* layer; device pairing is a separate layer that always applies. The first browser hit creates a pending request, and one CLI approval is all you need per browser. Pairing survives reloads, restarts, and reboots.
+
+### Step T7: Lock SSH down to Tailscale only
+
+A public SSH port on the open internet is constantly scanned. Bots sweep the IPv4 space looking for port 22, then attempt credential stuffing, brute force against weak passwords, and exploits against unpatched `sshd` versions. Even with key-only auth, the surface is constant noise in your logs and a single misconfigured password (or a future `sshd` CVE) is all it takes to lose the box.
+
+Putting SSH behind Tailscale removes that surface entirely. With UFW dropping all non-`tailscale0` traffic, port 22 simply does not respond to the public internet — there is nothing for bots to attack. Only devices that have authenticated to your tailnet (with WireGuard keys tied to your identity provider) can even reach the port. Tailscale's own auth runs underneath SSH, so an attacker would have to compromise your tailnet identity *and* your SSH credentials to get a shell.
+
+This matters especially if SSH password auth is enabled on the VPS. With public SSH, a weak password is a brute-force target around the clock. Behind Tailscale, the password never sees the public internet at all.
+
+To restrict SSH to your tailnet:
+
+```bash
+apt-get install -y ufw
+
+# Allow all traffic over Tailscale
+ufw allow in on tailscale0
+
+# Keep public SSH as a fallback until you verify Tailscale SSH works
+ufw allow in on eth0 to any port 22
+
+ufw default deny incoming
+ufw default allow outgoing
+ufw enable
+```
+
+Verify Tailscale SSH from your laptop (MagicDNS resolves the hostname automatically — no IP needed):
+
+```bash
+ssh root@<hostname>
+```
+
+Once confirmed, drop the public-SSH fallback rule:
+
+```bash
+ufw delete allow in on eth0 to any port 22
+```
+
+The VPS is now reachable only through your tailnet. Both SSH and the dashboard are gated by tailnet identity, and the gateway never exposes a port on a public interface.
 
 ## What Persists Where
 
@@ -216,61 +397,16 @@ docker compose build
 docker compose up -d
 ```
 
-## Highly Recommended: Use Tailscale Instead of SSH Tunnels
-
-The SSH tunnel approach works, but it has downsides: the tunnel only stays active while the terminal running it is open, and you need to re-run the command each time your laptop sleeps or the terminal closes.
-
-[Tailscale](https://tailscale.com) (free tier) creates a private network between your devices. Once set up, you can access the Control UI directly from your browser without managing tunnels. It also works from your phone, which is useful for testing messaging channels.
-
-### Setup
-
-Install Tailscale on your VPS (as root):
-
-```bash
-curl -fsSL https://tailscale.com/install.sh | sh
-tailscale up
-```
-
-Follow the printed URL to authenticate the device. Install Tailscale on your laptop as well and join the same network. Note the VPS **Tailscale IP** (e.g., `100.x.y.z`).
-
-Remove the `127.0.0.1:` prefix from both `ports` lines in `docker-compose.yml` and restart with `docker compose up -d`. That prefix restricts Docker's port forwarding to the host's loopback interface, which blocks Tailscale traffic too, so it needs to go. With UFW (below), only your Tailscale network can reach the port.
-
-Access the Control UI directly, no tunnel needed:
-
-```
-http://TAILSCALE_IP:18789/
-```
-
-### Lock Down SSH to Tailscale Only
-
-With Tailscale working, you can restrict SSH so only devices on your Tailscale network can connect:
-
-```bash
-apt-get install -y ufw
-
-# Allow all traffic over Tailscale
-ufw allow in on tailscale0
-
-# Keep public SSH as a fallback until you verify Tailscale SSH works
-ufw allow in on eth0 to any port 22
-
-ufw default deny incoming
-ufw default allow outgoing
-ufw enable
-```
-
-Verify you can SSH via your Tailscale IP (`ssh root@TAILSCALE_IP`). Once confirmed, drop public SSH:
-
-```bash
-ufw delete allow in on eth0 to any port 22
-```
-
-Now the only way to reach the VPS is through your Tailscale network.
+If `git pull` reports a conflict on `docker-compose.yml`, that is your local edits from Step 5 (and Step T2 if you took the Tailscale path) clashing with upstream changes. `git stash`, pull, then reapply your edits, or resolve the conflict by hand.
 
 ## Troubleshooting
 
 - **Build fails with OOM**: Add swap or upgrade VPS plan
-- **Cannot access Control UI**: Check your SSH tunnel is running (or Tailscale is connected on both sides), and that the gateway token is correct
+- **Cannot access Control UI (SSH-tunnel path)**: Check your SSH tunnel is running and the gateway token is correct
+- **Cannot access Control UI (Tailscale Serve path)**: Check Tailscale is connected on both sides (`tailscale status`), `tailscale serve status` shows the proxy entry, and your tailnet HTTPS hostname is listed in `gateway.controlUi.allowedOrigins`
+- **`tailscale serve` fails with a certificate error**: HTTPS Certificates were just enabled in the admin console and Let's Encrypt has not finished provisioning the cert yet. Wait a minute and rerun the command.
+- **Dashboard loads but the WebSocket immediately closes**: The tailnet hostname is missing from `gateway.controlUi.allowedOrigins`, or the entry has a trailing slash or the wrong scheme (`http://` instead of `https://`). The check is exact-match.
+- **"pairing required" on the dashboard**: Expected on the first browser connection per device. Approve once: `docker compose exec openclaw-gateway openclaw devices pending` then `... openclaw devices approve <requestId>`
 - **Gateway not starting**: Check logs with `docker compose logs -f openclaw-gateway`
 - **Model auth fails**: Re-run `openclaw models auth add` inside the container (or re-run `openclaw onboard` to step through everything again)
 
