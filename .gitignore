@@ -20,3 +20,7 @@ workspaces/personal-assistant/skills/hn-digest/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Python runtime artifacts (from running scripts like rental-search)
+__pycache__/
+*.pyc
