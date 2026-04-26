@@ -30,7 +30,7 @@ The live demos run against a VPS prepared before the course. The artifacts below
 | 4 | Adding a Custom Skill | M3 | [`workspaces/personal-assistant/skills/rental-search/`](workspaces/personal-assistant/skills/rental-search/) |
 | 5 | Security Pitfalls + Guardrails | M4 | Live VPS demo (no repo artifact) |
 | 6 | Proactive Automation (Cron + Heartbeat) | M4 | Live VPS config walk (no repo artifact) |
-| 7 | Multi-Agent Personas | M4 | [`multi-agent/openclaw.json.example`](multi-agent/openclaw.json.example), [`workspaces/personal-assistant/`](workspaces/personal-assistant/), [`workspaces/coding-agent/`](workspaces/coding-agent/) |
+| 7 | Multi-Agent Personas | M4 | [`multi-agent/openclaw.example.json5`](multi-agent/openclaw.example.json5), [`workspaces/personal-assistant/`](workspaces/personal-assistant/), [`workspaces/coding-agent/`](workspaces/coding-agent/) |
 
 ## How to use this repo
 
@@ -59,7 +59,7 @@ This repo is a take-home companion to the live course. It bundles the deployment
 
 ### Multi-agent variant
 
-For Demo 7 (two agents on one gateway, each bound to a different Telegram bot), see [`multi-agent/README.md`](multi-agent/README.md). It walks through copying both workspaces into separate paths, generating two bot tokens, and merging the reference `openclaw.json.example` into your gateway config. Stick with the single-agent default unless you want multiple agents on one gateway.
+For Demo 7 (two agents on one gateway, each bound to a different Telegram bot), see [`multi-agent/README.md`](multi-agent/README.md). It walks through copying both workspaces into separate paths, generating two bot tokens, and merging the reference `openclaw.example.json5` into your gateway config. Stick with the single-agent default unless you want multiple agents on one gateway.
 
 ## Folder reference
 

@@ -55,11 +55,11 @@ cp ../deployment/.env.template .env
 # multi-agent variant uses the two named tokens instead.
 ```
 
-These two var names match the `${ALFRED_BOT_TOKEN}` / `${CODER_BOT_TOKEN}` substitutions in `openclaw.json.example`.
+These two var names match the `${ALFRED_BOT_TOKEN}` / `${CODER_BOT_TOKEN}` substitutions in `openclaw.example.json5`.
 
 ### 3. Apply the config
 
-Point your gateway at `openclaw.json.example` (either copy it to `~/.openclaw/openclaw.json` or merge its contents into your existing config). Make sure env substitutions are available when the gateway starts: in Docker this means exporting the env vars into the container; with a local gateway, source the `.env` before starting.
+Point your gateway at `openclaw.example.json5` (either copy it to `~/.openclaw/openclaw.json` or merge its contents into your existing config). Make sure env substitutions are available when the gateway starts: in Docker this means exporting the env vars into the container; with a local gateway, source the `.env` before starting.
 
 ### 4. Restart the gateway
 
@@ -195,5 +195,5 @@ See the OpenClaw [Multi-Agent Routing docs](https://docs.openclaw.ai/concepts/mu
 
 ## Files in this folder
 
-- `openclaw.json.example`: full gateway config (annotated). Two agents, two bindings, two Telegram accounts.
+- `openclaw.example.json5`: full gateway config (annotated). Two agents, two bindings, two Telegram accounts.
 - `README.md`: this file. Env vars come from `../deployment/.env.template` (see Setup step 2).
