@@ -25,7 +25,7 @@ The live demos run against a VPS prepared before the course. The artifacts below
 | # | Demo | Module | Key Files |
 |---|---|---|---|
 | 1 | OpenClaw in Action | M1 | [`workspaces/personal-assistant/`](workspaces/personal-assistant/) |
-| 2 | VPS Deployment + Dashboard | M2 | [`deployment/hostinger-vps-guide.md`](deployment/hostinger-vps-guide.md) |
+| 2 | VPS Deployment + Dashboard | M2 | [`deployment/linux-vps-guide.md`](deployment/linux-vps-guide.md) |
 | 3 | Context Files Walkthrough | M3 | [`workspaces/personal-assistant/SOUL.md`](workspaces/personal-assistant/SOUL.md), [`IDENTITY.md`](workspaces/personal-assistant/IDENTITY.md), [`USER.md`](workspaces/personal-assistant/USER.md), [`AGENTS.md`](workspaces/personal-assistant/AGENTS.md), [`TOOLS.md`](workspaces/personal-assistant/TOOLS.md) |
 | 4 | Adding a Custom Skill | M3 | [`workspaces/personal-assistant/skills/rental-search/`](workspaces/personal-assistant/skills/rental-search/) |
 | 5 | Security Pitfalls + Guardrails | M4 | Live VPS demo (no repo artifact) |
@@ -44,7 +44,7 @@ This repo is a take-home companion to the live course. It bundles the deployment
 
 ### Default flow (single-agent)
 
-1. **Deploy a gateway.** Follow [`deployment/hostinger-vps-guide.md`](deployment/hostinger-vps-guide.md) end-to-end. The base path uses an SSH tunnel; the optional Tailscale Serve section at the end is what was used on the demo VPS for the live course.
+1. **Deploy a gateway.** Follow [`deployment/linux-vps-guide.md`](deployment/linux-vps-guide.md) end-to-end. The base path uses an SSH tunnel; the optional Tailscale Serve section at the end is what was used on the demo VPS for the live course.
 
    Faster alternatives covered in the guide:
    - **Hostinger one-click** — [OpenClaw VPS template](https://www.hostinger.com/vps/docker/openclaw) provisions a ready-to-go instance with no SSH or Docker knowledge needed.

@@ -27,7 +27,7 @@ Telegram @coder_*_bot   ─┘                         └── agent: coder (e
 
 ## Prerequisites
 
-- OpenClaw gateway running (see `../deployment/hostinger-vps-guide.md` if you do not have one yet)
+- OpenClaw gateway running (see `../deployment/linux-vps-guide.md` if you do not have one yet)
 - Two Telegram bots created via `@BotFather` (the flow is `/newbot` → pick names → copy tokens)
 - An LLM provider key (OpenRouter is the example; swap if you use Anthropic or OpenAI directly)
 - Your numeric Telegram user ID (DM `@userinfobot` to get it)

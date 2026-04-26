@@ -1,32 +1,38 @@
-# Deploying OpenClaw on a Hostinger VPS
+# Deploying OpenClaw on a Linux VPS
 
-A step-by-step guide to getting OpenClaw running 24/7 on a Hostinger VPS with Docker.
+A step-by-step guide to getting OpenClaw running 24/7 on a Linux VPS with Docker.
+
+**Works on other VPS providers too.** The setup is Docker-based, so any Linux VPS with Docker runs it. Hostinger is just the example provider — DigitalOcean, Linode, Hetzner, AWS Lightsail, and others all work the same way. Only Step 1 (provisioning) is provider-specific, and the public interface name in Step T7 (`eth0` vs `ens3`, etc.) may differ.
 
 ## What You Will Have at the End
 
 - A persistent OpenClaw Gateway running on your own VPS
 - Docker-based deployment that survives reboots
-- Secure remote access via SSH tunnel (base path)
+- Secure remote access via SSH tunnel
 - Optional: HTTPS through Tailscale Serve with tokenless tailnet auth (recommended)
 
 ## Prerequisites
 
-- A Hostinger account with a VPS plan (4GB+ RAM recommended)
-- An LLM API key (Anthropic, OpenAI, or Google)
+- A VPS with 4GB+ RAM (Hostinger, DigitalOcean, Hetzner, Linode, etc.)
+- An LLM API key (Anthropic, OpenAI, OpenRouter, Gemini, or any other [supported provider](https://docs.openclaw.ai/providers))
 - Basic comfort with SSH and the command line
 
 ## Fast Path (Optional)
 
-OpenClaw ships a one-shot setup script that handles most of what's below automatically. After Step 3 (clone the repo), you can run:
+Two faster alternatives to the manual walkthrough below.
+
+**Hostinger one-click (Hostinger only).** The [OpenClaw VPS template](https://www.hostinger.com/vps/docker/openclaw) provisions a ready-to-go instance with OpenClaw pre-installed — no SSH or Docker knowledge needed. After provisioning, follow Step 9 to access the Control UI. If the template uses a different port or bind, follow its own documentation for accessing the Control UI.
+
+**Setup script (any Docker-capable VPS).** OpenClaw ships a one-shot setup script that handles most of what's below automatically. After Step 3 (clone the repo), run:
 
 ```bash
 cd ~/openclaw
 ./docker-setup.sh
 ```
 
-The script builds the image, generates a gateway token, writes `.env`, runs `openclaw onboard` (model and channel setup), and starts the gateway via Docker Compose. After it finishes, follow Step 9 to access the Control UI and verify everything works.
+The script builds the image, generates a gateway token, writes `.env`, runs `openclaw onboard` (model and channel setup), and starts the gateway via Docker Compose. After it finishes, run Steps T1–T7 to put the gateway behind Tailscale (recommended), or use the SSH tunnel from Step 9 for quick access.
 
-The rest of this guide is the manual walkthrough. Slower, but useful if you want to understand each piece or customize the setup.
+The rest of this guide is the manual walkthrough. The fast paths above hide Docker, env, networking, and config behind one command — fine for getting started, but worth understanding before you reach for them, especially if you hit a misconfiguration later or move to a different provider.
 
 ## Step 1: Create Your VPS
 
@@ -136,7 +142,7 @@ services:
       - "127.0.0.1:${OPENCLAW_BRIDGE_PORT:-18790}:18790"
 ```
 
-Port `18789` is the gateway's main WebSocket and Control UI endpoint. Port `18790` is the channel-bridge port used by some channel adapters; harmless to keep, and binding it to loopback as well keeps it off the public internet.
+Both ports are bound to loopback to keep them off the public internet. Port `18789` is the gateway's main WebSocket and Control UI endpoint.
 
 Leave everything else in the file unchanged.
 
@@ -170,12 +176,6 @@ The two flags above are specific to this Docker-on-VPS setup:
 
 - `--skip-daemon` — skip the systemd / launchd service install. We use Docker Compose for the gateway lifecycle.
 - `--skip-health` — skip the gateway-start and health-check step. We start the gateway in Step 8 via Docker Compose.
-
-After the gateway is running (Step 8), use `docker compose exec` instead to open a shell in the running container:
-
-```bash
-docker compose exec openclaw-gateway bash
-```
 
 **Where are my files?** The container's working directory is `/app` (the OpenClaw source code). Your configuration and workspace are at `/home/node/.openclaw/` inside the container, which maps to `/root/.openclaw/` on the host. You can edit files from either side; they are the same files.
 
@@ -291,7 +291,7 @@ Replace the hostname in `allowedOrigins` with your own MagicDNS hostname (with `
     },
     "controlUi": {
       "allowedOrigins": [
-        "https://my-vps.tail-a1b2.ts.net"
+        "https://<hostname>.<tailnet>.ts.net"
       ]
     },
     "trustedProxies": ["127.0.0.1/32", "::1/128"]
@@ -387,6 +387,8 @@ The VPS is now reachable only through your tailnet. Both SSH and the dashboard a
 | Agent workspace | `/root/.openclaw/workspace/` | SOUL.md, AGENTS.md, memory, skills |
 | Sessions | `/root/.openclaw/` | Chat history |
 | Docker image | Container filesystem | Rebuilt on `docker compose build` |
+
+**Back up `~/.openclaw/`.** Everything important — workspace, sessions, model credentials, gateway tokens, paired devices — lives there. Periodically copy it off the VPS (rsync to another host, or scp to your laptop) so you can rebuild from scratch without losing state. The Docker image is reproducible from `docker compose build`; `~/.openclaw/` is not.
 
 ## Updating OpenClaw
 
