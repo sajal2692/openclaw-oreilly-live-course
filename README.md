@@ -14,7 +14,7 @@ openclaw_course_code/
   README.md            (this file)
 ```
 
-The repo is organized **by asset type**, not by course module. Most assets show up across multiple modules — a workspace is used in the Module 1 opener, the Module 3 customization demo, and the Module 4 multi-agent demo — so asset-type layout avoids duplication.
+The repo is organized **by asset type**. Most assets show up across multiple modules — a workspace is used in the Module 1 opener, the Module 3 customization demo, and the Module 4 multi-agent demo — so an asset-type layout avoids duplication.
 
 The default topology is **one agent, one channel, one workspace**. That is what Demos 1 through 6 use, and it is what the `deployment/` guide sets up. The `multi-agent/` folder is an explicit variant for the Demo 7 use case where you want multiple agents on one gateway.
 
@@ -90,7 +90,7 @@ See `multi-agent/README.md` for the multi-agent variant (two agents, two Telegra
 
 ## Course modules
 
-The 5-hour live course is structured into four modules. The repository is organized by asset type rather than by module, but here is the mapping:
+The 5-hour live course is structured into four modules:
 
 - **Module 1:** The Integrated AI Agent and OpenClaw Architecture
 - **Module 2:** Deployment Options and Going Live

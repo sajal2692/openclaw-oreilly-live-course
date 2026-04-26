@@ -88,7 +88,7 @@ You should see both `alfred` and `coder` agents, each with its Telegram binding.
 - DM `@alfred_*_bot` → personal assistant replies in measured, formal tone.
 - DM `@coder_*_bot` → terse engineer replies focused on code.
 
-The two agents do not share memory, sessions, or personas. They just share a gateway process and an LLM provider configuration.
+The two agents share only a gateway process and an LLM provider configuration; memory, sessions, and personas are isolated per agent.
 
 ## Beyond chat: git push and PR creation (optional)
 
