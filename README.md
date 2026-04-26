@@ -32,72 +32,40 @@ The live demos run against a VPS prepared before the course. The artifacts below
 | 6 | Proactive Automation (Cron + Heartbeat) | M4 | Live VPS config walk (no repo artifact) |
 | 7 | Multi-Agent Personas | M4 | [`multi-agent/openclaw.json.example`](multi-agent/openclaw.json.example), [`workspaces/personal-assistant/`](workspaces/personal-assistant/), [`workspaces/coding-agent/`](workspaces/coding-agent/) |
 
-## Folder reference
+## How to use this repo
 
-### `workspaces/`
-
-Each subfolder is a complete, runnable OpenClaw workspace. Drop one into `~/.openclaw/workspace/` (single-agent) or wire it as an `agentId` under `agents.list[]` (multi-agent) and the agent boots with that persona, those skills, and that PKM scaffolding.
-
-- **`personal-assistant/`** — Daily-driver personal assistant ("Alfred"). File-based PKM (tasks, daily notes, weekly reviews, projects, freeform notes, reading tracker). Bundled skills: `notes-tasks`, `daily-briefing`, `nightly-review`, `weekly-review`, `books-tracker`, `rental-search`. Used as the running example throughout Modules 1 through 6.
-- **`coding-agent/`** — Minimal engineer persona ("Coder"). Direct, terse, code-focused. Workspace holds one or more cloned git repos and the agent operates inside them. Bundled skills: `create-pr` (drafts title + summary/changes/test-plan body from the branch diff and runs `gh pr create`), `review-code` (structured review with Blockers / Suggestions / Nits / What's good sections, file-line references, review-only by default). Used as the second agent in the Module 4 multi-agent demo.
-
-### `deployment/`
-
-Take-home resources for deploying OpenClaw on a VPS. The Dockerfile and docker-compose.yml live in the OpenClaw repo itself; this folder provides the guide and environment template.
-
-- `hostinger-vps-guide.md` — Step-by-step take-home VPS deployment guide
-- `.env.template` — Required environment variables (placeholder values)
-
-Other deployment paths mentioned in the course:
-
-- **Hostinger one-click:** [OpenClaw VPS template](https://www.hostinger.com/vps/docker/openclaw) provisions a ready-to-go instance with no SSH or Docker knowledge needed.
-- **Fast-path script:** The OpenClaw repo ships `docker-setup.sh`, which automates image build, token generation, onboarding, and gateway start.
-
-### `multi-agent/`
-
-Configuration variant for hosting multiple agents on one gateway. Used in the Module 4 multi-agent demo. Ships as a reference config plus a setup README — you bring your own workspaces (from `../workspaces/`) and two Telegram bot tokens.
-
-- `openclaw.json.example` — Full annotated gateway config (two agents, two bindings, two Telegram accounts)
-- `README.md` — What this is, how it differs from the default single-agent setup, and step-by-step instructions to run it yourself. Env vars are shared with the single-agent setup; see `deployment/.env.template` and add a second Telegram bot token alongside the first.
-
-## A note on skill scopes
-
-OpenClaw supports two scopes for skills:
-
-- **Workspace-bundled** (used throughout this repo). Skills live inside a workspace's `skills/` folder and ship with it. Use this when the skill is tightly coupled to the workspace's conventions (e.g., the personal-assistant's `daily-briefing` skill reads `notes/dailies/_template.md`, which only exists in that workspace).
-- **System-installed** (not used in this repo's demos). Generic, reusable skills installed at the gateway level via `openclaw skills install <slug>` or pulled from ClawHub. Available to every agent on the gateway.
-
-Every demo in this course is anchored to a specific workspace use case, so all the skills here are workspace-bundled. The system-installed pattern is taught conceptually in M3 but not exercised by these demos.
-
-## Getting started
+This repo is a take-home companion to the live course. It bundles the deployment guide, the agent personas, and the demo artifacts so you can stand up your own OpenClaw gateway and reproduce what was demonstrated.
 
 ### Prerequisites
 
-- A Linux VPS (Ubuntu / Debian) or local machine with Docker
+- A Linux VPS (Ubuntu / Debian) or a local machine with Docker
 - An LLM API key (Anthropic, OpenAI, or OpenRouter)
 - Basic comfort with SSH and the command line
 
-### Quick setup (single-agent default)
+### Default flow (single-agent)
 
-1. Clone this repository
-2. Copy `deployment/.env.template` to `.env` and fill in your values
-3. Follow the deployment guide in `deployment/hostinger-vps-guide.md`
-4. Copy your chosen workspace template from `workspaces/` into `~/.openclaw/workspace/`
+1. **Deploy a gateway.** Follow [`deployment/hostinger-vps-guide.md`](deployment/hostinger-vps-guide.md) end-to-end. The base path uses an SSH tunnel; the optional Tailscale Serve section at the end is what was used on the demo VPS for the live course.
 
-### Multi-agent setup
+   Faster alternatives covered in the guide:
+   - **Hostinger one-click** — [OpenClaw VPS template](https://www.hostinger.com/vps/docker/openclaw) provisions a ready-to-go instance with no SSH or Docker knowledge needed.
+   - **Fast-path script** — the OpenClaw repo ships `docker-setup.sh`, which automates image build, token generation, onboarding, and gateway start.
 
-See `multi-agent/README.md` for the multi-agent variant (two agents, two Telegram bots, one gateway).
+2. **Pick a workspace.** Clone this course repo locally, then copy a `workspaces/` subfolder onto the VPS at `~/.openclaw/workspace/` (e.g. `scp -r workspaces/personal-assistant root@<vps>:/root/.openclaw/workspace`). Each subfolder is a complete, runnable OpenClaw workspace — drop it in and the agent boots with that persona, those skills, and that PKM scaffolding.
 
-## Course modules
+   - **[`personal-assistant/`](workspaces/personal-assistant/)** — Daily-driver personal assistant ("Alfred"). File-based PKM (tasks, daily notes, weekly reviews, projects, freeform notes, reading tracker). Bundled skills: `notes-tasks`, `daily-briefing`, `nightly-review`, `weekly-review`, `books-tracker`, `rental-search`. The running example throughout the course.
+   - **[`coding-agent/`](workspaces/coding-agent/)** — Minimal engineer persona ("Coder"). Direct, terse, code-focused. Workspace holds one or more cloned git repos and the agent operates inside them. Bundled skills: `create-pr` (drafts title + summary/changes/test-plan body from the branch diff and runs `gh pr create`) and `review-code` (structured review with Blockers / Suggestions / Nits / What's good sections, file-line references, review-only by default). Used as the second agent in the Module 4 multi-agent demo.
 
-The 5-hour live course is structured into four modules:
+3. **Customize.** Edit `SOUL.md`, `IDENTITY.md`, `USER.md`, `AGENTS.md`, and `TOOLS.md` inside your chosen workspace to fit your own context. The personal-assistant's `notes/` folder is plain markdown — re-use, replace, or wire your own PKM in. Bundled skills (e.g. `skills/rental-search/`) are self-contained, so copy and adapt them as templates for your own.
 
-- **Module 1:** The Integrated AI Agent and OpenClaw Architecture
-- **Module 2:** Deployment Options and Going Live
-- **Module 3:** The OpenClaw Workspace — Tailoring Your Agent
-- **Module 4:** Security, Automation, and Real-World Workflows
+### Multi-agent variant
 
-See the Demo Index above for which artifacts each module uses.
+For Demo 7 (two agents on one gateway, each bound to a different Telegram bot), see [`multi-agent/README.md`](multi-agent/README.md). It walks through copying both workspaces into separate paths, generating two bot tokens, and merging the reference `openclaw.json.example` into your gateway config. Stick with the single-agent default unless you want multiple agents on one gateway.
+
+## Folder reference
+
+- **[`workspaces/`](workspaces/)** — Pre-built agent personas (`personal-assistant/`, `coding-agent/`)
+- **[`deployment/`](deployment/)** — VPS deployment guide and `.env.template`. The Dockerfile and `docker-compose.yml` live in the [OpenClaw repo](https://github.com/openclaw/openclaw) itself.
+- **[`multi-agent/`](multi-agent/)** — Reference `openclaw.json` and setup README for hosting two agents on one gateway (Demo 7)
 
 ## Resources
 
