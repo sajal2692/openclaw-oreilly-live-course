@@ -10,12 +10,14 @@
   //   2. Copy ../workspaces/coding-agent to ~/.openclaw/workspace-coder
   //   3. Create two Telegram bots via @BotFather, put tokens in .env
   //   4. Point OpenClaw at this config (or merge into ~/.openclaw/openclaw.json)
-  //   5. Pair each bot by DM'ing the pairing code to both
+  //   5. DM each bot to get a pairing code, then approve from the host with
+  //      `openclaw pairing approve telegram <CODE>` (or via `docker compose
+  //      exec openclaw-gateway openclaw pairing approve telegram <CODE>`).
   //
   // See README.md in this folder for the full walkthrough.
 
   agents: {
-    // Shared defaults — model, providers, heartbeat. Agents inherit these unless
+    // Shared defaults: model, providers, heartbeat. Agents inherit these unless
     // overridden per-agent under agents.list[].
     defaults: {
       models: {
@@ -35,13 +37,13 @@
       {
         id: "alfred",
         workspace: "~/.openclaw/workspace-alfred",
-        // No overrides — alfred inherits everything from defaults.
+        // No overrides; alfred inherits everything from defaults.
       },
       {
         id: "coder",
         workspace: "~/.openclaw/workspace-coder",
 
-        // Turn heartbeat off for this agent — coder acts only when DM'd.
+        // Turn heartbeat off for this agent; coder acts only when DM'd.
         heartbeat: { every: "0m" },
 
         // Swap to a coding-optimized model. Kimi K2.6 is strong at code,
@@ -56,8 +58,11 @@
         // For production use, prefer:
         //   tools: { exec: { security: "allowlist", ask: "on-miss" } }
         // and widen the allowlist as the agent proves itself on routine
-        // commands. Full-autopilot here is safe only because the workspace
-        // is scoped (tools.fs.workspaceOnly: true at the gateway level).
+        // commands. With security: "full" the agent can run any shell
+        // command the container user can run, so the real sandbox here
+        // is the Docker container the gateway runs in (per the deployment
+        // guide). Do not use security: "full" if the gateway is running
+        // directly on a host without container isolation.
         tools: { exec: { security: "full", ask: "off" } },
       },
     ],
