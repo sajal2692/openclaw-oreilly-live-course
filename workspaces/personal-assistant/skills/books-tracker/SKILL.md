@@ -90,7 +90,7 @@ When the user wants stats:
 
 1. Read all rows
 2. Compute: total completed, completed this year, by status
-3. Optionally compute reading pace (books per month based on completion dates)
+3. For reading pace or annual goals, resolve today in USER.md's timezone and calculate from this year's completion dates. Compare completed books with the annual goal and the fraction of the year elapsed. Recompute from the rows; do not reuse a historical written "on track" summary.
 4. Format as a brief summary
 
 ## Notes
@@ -98,4 +98,4 @@ When the user wants stats:
 - Always read the file before writing to preserve external edits
 - Preserve table formatting (column alignment is for humans, not required for parsing)
 - If the user wants richer metadata (genre, ISBN, etc.), add columns. The format is flexible.
-- For book lookup (verifying author, year, etc.), Alfred can web-search. No API key required.
+- For book lookup, use an available configured search/browser tool and verify the result. Search availability and credentials depend on the selected provider. If no suitable tool is configured, ask for the missing facts or report the limitation.

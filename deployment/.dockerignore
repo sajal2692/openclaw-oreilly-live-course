@@ -1,0 +1,4 @@
+# Build context needs only the recipe and dependency list, never .env or state.
+*
+!Dockerfile.course
+!requirements.txt

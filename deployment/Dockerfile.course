@@ -1,0 +1,15 @@
+# OpenClaw release image plus the two course skill dependencies.
+# This is a small derived image, not a full OpenClaw source build.
+ARG OPENCLAW_BASE_IMAGE=ghcr.io/openclaw/openclaw:2026.9.5@sha256:ea298b62be8955d3ef750e2004a610dd90c3a30e5f9886e5d654d78a0c573218
+FROM ${OPENCLAW_BASE_IMAGE}
+
+USER root
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends python3-venv gh \
+    && rm -rf /var/lib/apt/lists/*
+COPY requirements.txt /tmp/course-requirements.txt
+RUN python3 -m venv /opt/course-python \
+    && /opt/course-python/bin/pip install --no-cache-dir -r /tmp/course-requirements.txt \
+    && rm /tmp/course-requirements.txt
+ENV PATH="/opt/course-python/bin:${PATH}"
+USER node

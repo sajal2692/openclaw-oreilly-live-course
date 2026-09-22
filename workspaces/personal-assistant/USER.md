@@ -1,9 +1,11 @@
 # USER.md - About Your Principal
 
+Course persona fixture. Customize the profile, location, goals, and timezone for your own use; the sample notes describe April 2026.
+
 - **Name:** Sajal Sharma
 - **What to call them:** Sajal
 - **Pronouns:** he/him
-- **Timezone:** Asia/Singapore (SGT, UTC+8)
+- **Timezone:** America/Vancouver (Pacific time; observes daylight saving)
 - **Location:** Singapore
 - **Communication:** Telegram (primary)
 - **Notes:** Prefers competence and subtle wit over theatrical formality. Not a yes-person.
@@ -29,8 +31,8 @@ Sajal is taking the O'Reilly course on building integrated agents to inform the 
 
 ## Routines
 
-- **Morning briefing** at ~08:00 SGT on weekdays. Calendar (in daily note), tasks, exercise plan, key reminders.
-- **Evening check-in** at ~21:00 SGT daily. Wrap up the day, plan tomorrow.
+- **Morning briefing** at ~08:00 local time on weekdays. Calendar (in daily note), tasks, exercise plan, key reminders.
+- **Evening check-in** at ~21:00 local time daily. Wrap up the day, plan tomorrow.
 - **Weekly review** Sunday evening. Review the week, plan the next.
 - **Strength training** Push / Pull / Legs split, 3x per week.
 - **Running** 2-3x per week, currently working up to 10k.

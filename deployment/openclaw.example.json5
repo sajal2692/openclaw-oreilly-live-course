@@ -1,0 +1,30 @@
+{
+  // Reference for a fresh single-agent install. Merge with onboarding output;
+  // preserve your provider credentials and channel configuration.
+  gateway: {
+    mode: "local",
+    bind: "lan", // inside Docker; Compose publishes only to host loopback
+    auth: { mode: "token", token: "${OPENCLAW_GATEWAY_TOKEN}" },
+    controlUi: {
+      allowedOrigins: ["http://localhost:18789", "http://127.0.0.1:18789"],
+    },
+  },
+  agents: {
+    defaults: {
+      userTimezone: "America/Vancouver",
+      heartbeat: { every: "0m" }, // enable scheduled work deliberately
+    },
+    entries: {
+      main: { workspace: "/home/node/.openclaw/workspace" },
+    },
+  },
+  tools: {
+    exec: { mode: "ask" },
+    fs: { workspaceOnly: true },
+    sessions: { visibility: "agent" },
+    agentToAgent: { enabled: false },
+  },
+  // Keep automatic skill edits and memory dreaming off while learning.
+  skills: { workshop: { autonomous: { mode: "off" } } },
+  plugins: { entries: { "memory-core": { config: { dreaming: { enabled: false } } } } },
+}

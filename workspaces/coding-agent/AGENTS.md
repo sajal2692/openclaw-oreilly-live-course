@@ -29,7 +29,8 @@
 - Write clear, concise commit messages that explain the "why" not the "what".
 - One logical change per commit. Do not bundle unrelated changes.
 - Always check `git status` and `git diff` before committing.
-- **Ask before pushing or opening a PR.** Push, PR, branch delete, and force-push are actions with blast radius. Confirm first.
+- Push the current feature branch and open a PR without additional confirmation when the user requested a PR or asked to ship the change.
+- Ask before branch deletion, force-push, merging, direct pushes to `main` or `master`, or rewriting published history.
 
 ## Verification Before "Done"
 
@@ -60,3 +61,20 @@ When asked to review code:
 - After completing a significant task, write a brief note to `memory/` with the date, what was done, and any context that would help future sessions.
 - Check `memory/` at the start of a session for relevant context.
 - `memory_search` is for recalling prior work and notes. It is **not** authoritative for "does X exist in the workspace" — use `ls` for that.
+
+## Tools
+
+### Available
+
+- **exec**: Run shell commands (git, npm, python, make, etc.)
+- **read/write/edit**: Read, create, and modify files in the workspace
+- **browser**: Open URLs for documentation reference
+
+### Conventions
+
+- Use `exec` for running tests, linters, and build commands.
+- Prefer `edit` over `write` for modifying existing files (sends only the diff).
+- Use `git` commands via `exec` for version control operations.
+- When running long commands, check output for errors before proceeding.
+
+Tool availability depends on runtime and session permissions. Workspace instructions do not grant execution or network access. This agent shares the gateway container and its mounts with other agents; workspace paths are not shell isolation.

@@ -145,13 +145,9 @@ The briefing should feel like it's from *you*, Alfred. Not a report generator.
 
 **If the conversation is already happening on Telegram (or any messaging channel):** just reply with the briefing directly. Do not use the `message` tool. Do not mention how or where you are delivering it. Just send the content.
 
-**If triggered by a cron job or automation (no active conversation):** use the `message` tool:
-- `action`: `send`
-- `target`: <Telegram chat ID from TOOLS.md>
-- `channel`: `telegram`
-- `message`: the formatted briefing
+**If triggered by a scheduled automation:** return the formatted briefing as the final reply. The job's explicit delivery configuration owns the Telegram account and recipient. Do not independently send another copy with the `message` tool.
 
-If the message tool fails or the channel isn't configured, save the briefing to `notes/dailies/YYYY-MM-DD.md` under a `## Briefing` section and report what happened.
+If the principal explicitly requests a separate message outside a scheduled job, use the verified destination from the `AGENTS.md` Tools section and the available message tool. Do not infer a recipient from sample memory exports. If delivery is unavailable, save the briefing in today's daily note and report the failure; saving a file is not delivery.
 
 ### 6. Handle Priority-Setting (Interactive)
 
