@@ -9,10 +9,10 @@ Two agents share one OpenClaw 2026.9.5 gateway, with a separate Telegram bot and
 - Each agent has a workspace and canonical state at `~/.openclaw/agents/<agentId>/agent/openclaw-agent.sqlite`.
 - `bindings` route incoming messages by channel/account. More specific matches take precedence; the sample's two account matches are disjoint.
 - The reference keeps session-tool visibility within each agent and disables ordinary cross-agent session access. Files, environment credentials, and mounts remain shared within the container.
-- `tools.exec.mode: "ask"` is the sample's guarded default. Session Execution permissions, host approval policy, tool availability, and sandbox policy also affect a command. The instructor's deliberately unrestricted Coder demo uses `mode: "full"`; switching to Full Access requires a conscious administrator choice.
+- `tools.exec.mode: "ask"` is the sample's guarded default. Session Execution permissions, host approval policy, tool availability, and sandbox policy also affect a command. Switching to Full Access requires an explicit administrator choice.
 - The outer Docker container hosts both agents. A real boundary between mutually untrusted agents needs separate restricted execution environments or gateways. `tools.fs.workspaceOnly` scopes managed file tools and does not contain unrestricted shell commands.
 
-The sample retains distinct provider choices: Alfred uses OpenRouter Sonnet 4.6, and Coder uses direct Anthropic Sonnet 5 with OpenRouter fallback. The upgraded instructor deployment currently uses Sonnet 5 for both. Model choice is independent of the 2026.9.5 config migration; verify that your accounts can access the selected models.
+Alfred uses OpenRouter Sonnet 4.6, and Coder uses direct Anthropic Sonnet 5 with OpenRouter fallback. Model choice is independent of the 2026.9.5 config migration; verify that your accounts can access the selected models.
 
 ## Prerequisites
 
@@ -40,7 +40,7 @@ Edit the existing `deployment/.env`. Merge the values from [the multi-agent env 
 
 Merge [openclaw.example.json5](openclaw.example.json5) into `/root/.openclaw/openclaw.json`. Preserve gateway auth/network settings and provider credentials. For the fresh take-home setup, deliberately replace the old `main` roster entry with `alfred` and `coder`, and set the two bindings and Telegram accounts. Remove obsolete single-agent routing after checking it.
 
-For an existing installation with history, keep its agent IDs and explicit workspace paths instead of renaming them. Renaming `main` to `alfred` does not move canonical sessions or credentials. Adapt this sample to the existing IDs and run Doctor on a backed-up migration when required. The live instructor installation retains IDs `main` and `coder`, with Telegram accounts `default` and `coder`.
+For an existing installation with history, keep its agent IDs and explicit workspace paths instead of renaming them. Renaming `main` to `alfred` does not move canonical sessions or credentials. Adapt this sample to the existing IDs and run Doctor on a backed-up migration when required.
 
 The configuration fragment is not a standalone replacement for all onboarding output. In particular, copying it over the entire config can discard gateway auth or provider settings.
 
@@ -98,7 +98,7 @@ The helper contains a command, not the token. Do not put a token in a remote URL
 
 When the user asks for a PR, the bundled `create-pr` skill pushes the current feature branch and opens the PR. It leaves merging, force pushes, branch deletion, and direct pushes to `main` or `master` for separate explicit decisions. Coder may still need an exec approval under the active session policy.
 
-Rehearse with a disposable repository. Confirm the diff and tests before pushing, then review the returned PR. The presence of `gh`, a token, and a skill does not prove the entire workflow has passed.
+Try the workflow with a disposable repository. Confirm the diff and tests before pushing, then review the returned PR. Verify that the branch and PR appear in the intended GitHub repository.
 
 ## Further patterns
 

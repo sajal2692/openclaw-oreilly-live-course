@@ -1,6 +1,6 @@
 # Security boundaries on OpenClaw 2026.9.5
 
-Use this alongside Demo 5 and the deployment/multi-agent examples. The instructor's deliberately permissive Coder configuration is a demo choice. The take-home examples start with `tools.exec.mode: "ask"`, workspace-scoped file tools, agent-scoped session visibility, and cross-agent session access disabled.
+Use this alongside Demo 5 and the deployment/multi-agent examples. The examples start with `tools.exec.mode: "ask"`, workspace-scoped file tools, agent-scoped session visibility, and cross-agent session access disabled.
 
 ## Controls and what they cover
 
@@ -31,14 +31,14 @@ A session's explicit mode matters even after global config is changed. Inspect t
 
 Legacy `security`/`ask` pairs may still appear in imported policy. Prefer current `tools.exec.mode` in new examples. Doctor migrates legacy session policy; the retired `execSecurity` / `execAsk` session patch fields are rejected by the current API.
 
-## Rehearse guardrails with synthetic data
+## Test guardrails with synthetic data
 
 1. Use a disposable workspace containing a clearly fake profile. Select the exact session and record its permission mode.
 2. Present an untrusted skill/document that asks for an unrelated file read or command. Inspect what the agent attempts and what the runtime admits.
 3. Start in Read Only or Guarded, inspect a denied or approval-required operation, and confirm that no mutation occurred. Any network receiver used in the exercise should be under your control and receive only synthetic text.
-4. If comparing Full Access, choose it explicitly in the intended session, run only the bounded demonstration, then restore the prior mode. Verify the final files and any outgoing activity.
+4. If comparing Full Access, choose it explicitly in the intended session, run only the planned test, then restore the prior mode. Verify the final files and any outgoing activity.
 
-Do not infer safety from an allowlisted interpreter such as `python3`, `bash`, or `node`: it can run arbitrary code. Do not demonstrate exfiltration using a real USER.md, token, private profile, or paid webhook.
+Do not infer safety from an allowlisted interpreter such as `python3`, `bash`, or `node`: it can run arbitrary code. Use synthetic data for these tests and keep real profiles and credentials out of the test workspace.
 
 ## Diagnostics
 
@@ -50,7 +50,7 @@ docker compose exec openclaw-gateway openclaw security audit
 docker compose exec openclaw-gateway openclaw approvals get
 ```
 
-Read audit/approval output privately before showing it in class. Config validity does not prove isolation or successful enforcement. Docker hosting does not enable OpenClaw agent sandboxing; a sandbox also needs its backend, images, dependencies, and restricted mounts. Mounting the host Docker socket grants powerful host control and is not part of the take-home recipe.
+Check diagnostic output for credentials or private data before sharing it. Config validity does not prove isolation or successful enforcement. Docker hosting does not enable OpenClaw agent sandboxing; a sandbox also needs its backend, images, dependencies, and restricted mounts. Mounting the host Docker socket grants powerful host control and is not part of the take-home recipe.
 
 For separate operators or mutually untrusted agents, use separate gateways/environments and credentials, then verify the actual boundary. The independent course personas share one operator's trust boundary.
 

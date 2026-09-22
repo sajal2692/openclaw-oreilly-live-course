@@ -2,7 +2,7 @@
 
 Course materials for the O'Reilly live course on building, deploying, customizing, and securing self-hosted AI agents with OpenClaw.
 
-**Course baseline: OpenClaw 2026.9.5.** The repository examples target this exact release. See the [compatibility audit](docs/compatibility-2026.9.5.md) for migration changes, validation, and rehearsal limits.
+**Course baseline: OpenClaw 2026.9.5.** The repository examples target this exact release. See the [compatibility notes](docs/compatibility-2026.9.5.md) for migration guidance and setup checks.
 
 ## Repository layout
 
@@ -64,7 +64,7 @@ For Demo 6 (two agents on one gateway, each bound to a different Telegram bot), 
 - **[`deployment/`](deployment/)**: VPS guide, Compose recipe, course Dockerfile, env template, and single-agent config.
 - **[`multi-agent/`](multi-agent/)**: Current `agents.entries` config and setup for two agents on one gateway (Demo 6).
 - **[`automation/`](automation/)**: Opt-in scheduled reminders, heartbeat scratch, and inbound webhook examples.
-- **[`security/`](security/)**: Session permissions, shared-container boundaries, and synthetic-data rehearsal guidance.
+- **[`security/`](security/)**: Session permissions, shared-container boundaries, and exercises using synthetic data.
 
 ## Resources
 

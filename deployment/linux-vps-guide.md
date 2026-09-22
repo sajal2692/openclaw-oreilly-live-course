@@ -1,8 +1,8 @@
 # Deploying OpenClaw 2026.9.5 on a Linux VPS
 
-This guide uses Docker Compose and the official **2026.9.5** release image, with Python and GitHub CLI added for the course skills. It targets a fresh Ubuntu/Debian VPS. The course Hostinger deployment was upgraded from 2026.7.1 separately; follow [Upgrading an existing installation](#upgrading-an-existing-installation) before changing an existing gateway.
+This guide uses Docker Compose and the official **2026.9.5** release image, with Python and GitHub CLI added for the course skills. It targets a fresh Ubuntu/Debian VPS. Follow [Upgrading an existing installation](#upgrading-an-existing-installation) before changing an existing gateway.
 
-The base recipe runs one gateway container and provides an optional one-shot CLI service. It publishes only `127.0.0.1:18789`. The live instructor deployment has a persistent CLI companion as well; that is an operational choice, not one container per agent.
+The base recipe runs one gateway container and provides an optional one-shot CLI service. It publishes only `127.0.0.1:18789`.
 
 ## Prerequisites
 
@@ -55,9 +55,9 @@ docker compose config --quiet
 docker compose build openclaw-gateway
 ```
 
-The Dockerfile pins the upstream release by tag and digest. It adds Python packages in `/opt/course-python` and Debian's `gh` package. Direct Python dependency versions match the upgraded instructor environment; Debian package versions and transitive Python dependencies can vary. This is a student recipe, not a byte-for-byte copy of the instructor image.
+The Dockerfile pins the upstream release by tag and digest. It adds Python packages in `/opt/course-python` and Debian's `gh` package. Direct Python dependency versions are pinned in `requirements.txt`; Debian package versions and transitive Python dependencies can vary. Record the built image's digest for later recovery.
 
-If GHCR is unavailable, the official Docker Hub mirror is `openclaw/openclaw`. Verify the matching release digest before overriding `OPENCLAW_BASE_IMAGE` through `docker compose build --build-arg`. Avoid floating `latest` tags for a rehearsal.
+If GHCR is unavailable, the official Docker Hub mirror is `openclaw/openclaw`. Verify the matching release digest before overriding `OPENCLAW_BASE_IMAGE` through `docker compose build --build-arg`. Use a release tag and digest to keep your deployment reproducible.
 
 ## 4. Onboard before starting the gateway
 
@@ -204,9 +204,9 @@ For a complete cold backup, stop every container/service writing these mounts, a
 
 ## Upgrading an existing installation
 
-1. Record the **running** image digest and `openclaw --version`, mounts, config, and enabled jobs. The instructor's old `/root/openclaw` checkout stayed on 2026.7.1 after its image upgrade; its Git version does not identify the running runtime.
+1. Record the **running** image digest and `openclaw --version`, mounts, config, and enabled jobs. Check the version inside the running container; a separate source checkout may be on a different release.
 2. Make and verify a complete cold backup of the old image, state, external mounts, and deployment files. Preserve a matching image/state recovery point.
-3. Build or pull the chosen pinned candidate. Rehearse against a restored copy with outbound channels, schedules, and hooks disabled and network isolated. Review Doctor's changes before cutover.
+3. Build or pull the chosen pinned candidate. Test against a restored copy with outbound channels, schedules, and hooks disabled and network isolated. Review Doctor's changes before cutover.
 4. The 2026.7.1 → 2026.9.5 transition needs migration of legacy configuration/session policy and state. With all writers stopped, run the **candidate image** against the intended state copy:
 
    ```bash
@@ -244,7 +244,7 @@ docker compose up -d --no-build --force-recreate openclaw-gateway
 A one-shot `compose run` **shares the configured bind mounts**. It is a separate process, not an isolated state copy. Never run destructive repair concurrently with the gateway.
 
 - For config changes, validate first and follow restart requirements; `compose restart` does not reload `.env`.
-- For missing model auth, inspect `models status` and use onboarding/auth commands. Do not grep credentials onto a teaching screen.
+- For missing model auth, inspect `models status` and use onboarding/auth commands. Keep credentials out of shared logs and screenshots.
 - For dashboard connection failures, check the SSH tunnel or managed Serve claim, exact allowed origin, auth, and browser identity.
 - For skill eligibility failures, inspect `skills check` and verify dependencies in the actual execution environment. A separate agent sandbox needs its own Python/CLI dependencies.
 - For Telegram reminders, verify job execution **and** delivery separately. See [automation examples](../automation/README.md).

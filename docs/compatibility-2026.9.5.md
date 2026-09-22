@@ -1,62 +1,44 @@
-# OpenClaw 2026.9.5 compatibility audit
+# OpenClaw 2026.9.5 compatibility notes
 
-Audited September 22, 2026. Target release: **2026.9.5**, revision `ec9c1a13db8938e5a3eaa51fca2e981cde2395a9`. The course deployment was upgraded from 2026.7.1 separately. This audit updates the student repository and does not certify completion of the live demos.
+The course examples target **OpenClaw 2026.9.5**, revision `ec9c1a13db8938e5a3eaa51fca2e981cde2395a9`. Start with the [deployment guide](../deployment/linux-vps-guide.md) for a fresh installation. For an existing gateway, follow its [upgrade procedure](../deployment/linux-vps-guide.md#upgrading-an-existing-installation) with a complete backup.
 
-## Findings and changes
+## Migrating from an older release
 
-| Area | Finding | Repository update |
-|---|---|---|
-| Multi-agent config | The old example used `agents.list` and lacked valid multi-agent ownership. The actual 2026.9.5 CLI rejected it. | `agents.entries`, explicit ownership, system-agent selection, and account-specific bindings. |
-| Deployment | Floating image/source updates, a source build on a 4 GB VPS, and a template URL with an extra repository path were unreliable. | A complete local Compose recipe, release/digest-pinned base image, small course dependency layer, and correct repository paths. |
-| Container environment | Host mount paths could leak into runtime path resolution; restarting retained old env values. | Explicit container paths, separate auth-key mount, and recreation after env changes. |
-| Networking | The older manual Tailscale proxy instructions claimed tokenless access to the ordinary gateway port. | Managed Serve, dedicated-listener identity checks, operator-permission prerequisites, and normal auth for external proxy routes. |
-| State and recovery | The guide treated sessions/auth as generic files and described a temporary container as separate state. | Canonical SQLite locations, shared bind-mount semantics, cold backups, and matching image/state recovery. |
-| Workspace bootstrap | `TOOLS.md` and root `HEARTBEAT.md` were presented as active inputs. | Tools merged into `AGENTS.md`; retired files removed from the starter; monitor scratch documented. |
-| Memory privacy | Workspace instructions read curated memory in every session. | Main-private-session scope for curated and daily memory; task-specific reads in shared/scheduled contexts. |
-| Automation | Main-session system events were combined with isolated-delivery flags; removal used `rm --id`. | Current CLI examples, positional job IDs, explicit account/recipient, timezone checks, and separate execution/delivery verification. |
-| Boundaries | The multi-agent guide claimed fully isolated personas and used full/off exec by default. | Guarded sample exec, explicit session-tool limits, and explanation of the shared filesystem and credential boundary. |
-| Skills | Scheduled skills hard-coded independent sends, weekly review named an unavailable question tool, and dependency requirements were implicit. | Scheduler-owned delivery, ordinary clarification, corrected Sunday/ISO-week handling, dependency gates, and rental script base-directory resolution. |
-| Demo fixtures | April notes, old timezone, and static reading-pace summaries could be mistaken for current data. | Historical-fixture labels, Vancouver timezone defaults, and date-based reading-pace instructions. Dated records are preserved. |
-| Architecture/UI | An example note conflated current OpenClaw with PI; dashboard and device commands were stale. | OpenClaw-owned runtime and SQLite wording, Sessions-first UI guidance, and `devices list`. |
+- **Agent configuration:** `agents.entries` replaces the old `agents.list` array. Multi-agent configurations need explicit ownership and channel/account bindings. Preserve existing agent IDs and workspace paths when they contain history. See the [multi-agent guide](../multi-agent/README.md).
+- **Workspace instructions:** Tool notes belong in the Tools section of `AGENTS.md`. The starter no longer uses `TOOLS.md` or a root `HEARTBEAT.md`; see the [automation guide](../automation/README.md) for heartbeat scratch and scheduled jobs.
+- **Runtime state:** Shared state and per-agent sessions, transcripts, model auth, and memory indexes use SQLite stores. Back up the full state directory and external mounts with all writers stopped. Keep a matching image and state snapshot for recovery.
+- **Permissions:** Use current `tools.exec.mode` settings and inspect each session's Execution permissions. Doctor migrates legacy session policy. Separate agent IDs and workspace-scoped file tools still share the container's filesystem and credentials; see [security boundaries](../security/README.md).
+- **Container configuration:** Use container paths in runtime settings. Recreate containers after changing `.env`; `docker compose restart` keeps the previous environment.
+- **Remote access:** The deployment guide starts with a private SSH tunnel. Its optional managed Tailscale Serve setup uses a dedicated listener and verified identity. A manual proxy to the ordinary gateway port requires normal gateway authentication.
+- **Automation:** Use the current CLI examples, explicit account and recipient IDs, and your timezone. Check execution and delivery separately. Main-session system events and isolated jobs use different delivery options.
 
-The repository previously had no student-facing `security/` or `automation/` directory. Their new reference guides accompany the six-demo sequence. Instructor-only attack/preparation skills and runbooks remain outside this repository.
+Review Doctor's changes on a restored state copy before applying the upgrade to your active gateway.
 
-## Deliberate differences from the live deployment
+## Example defaults
 
-- The student Compose recipe starts one gateway and offers a one-shot CLI service. The live deployment has a persistent CLI companion.
-- The student image installs Debian's `gh` package. The verified local build has `gh 2.23.0`; the instructor image carries `gh 2.97.0` and private Git credential configuration. The guide supplies an explicit persistent HTTPS helper for student repositories.
-- Python direct dependencies match the instructor environment: requests 2.34.2 and Beautiful Soup 4.15.0. Apt versions and Python transitive dependencies are not fully locked.
-- The student sample uses guarded exec. The live Coder's full-access policy remains an instructor choice.
-- The multi-agent sample uses agent/account IDs `alfred` and `coder`. The live deployment retains agent `main`, Telegram account `default`, and `coder`. Existing installations should keep their IDs and state instead of renaming them by copying this sample.
-- Alfred's sample model remains OpenRouter Sonnet 4.6; Coder uses direct Anthropic Sonnet 5 with OpenRouter fallback. The live deployment currently uses Sonnet 5 for both. Verify provider access before reproducing model calls.
+The Docker recipe runs one gateway with an optional one-shot CLI service. It pins the upstream image by release and digest, then adds Python dependencies and GitHub CLI. Direct Python dependencies are pinned; Debian packages and transitive Python dependencies can vary. Record the resulting image digest alongside your backup.
 
-## Validation performed
+The single-agent example uses agent `main`. The multi-agent example uses `alfred` and `coder`, each bound to its own Telegram account. Alfred uses OpenRouter Sonnet 4.6; Coder uses direct Anthropic Sonnet 5 with OpenRouter fallback. Select models your provider accounts can access and keep credentials in the environment or the configured auth store.
 
-| Check | Result |
-|---|---|
-| Original multi-agent example with 2026.9.5 CLI | Rejected as expected: missing valid multi-agent ownership |
-| New single-agent, multi-agent, and merged examples | Valid with the released CLI; no legacy ownership warnings in the final examples |
-| Webhook fragment merged into the single-agent config | Valid |
-| Documented automation, model-status, device, and approval CLI flags | Verified against released CLI help and release source |
-| Compose configuration | Parses; loopback-only publishing, three persistent mounts, fixed internal paths, optional CLI profile, no Docker socket |
-| Course Docker image | Built locally from the pinned official digest |
-| Network-disabled container smoke | uid 1000; OpenClaw 2026.9.5 (`ec9c1a1`); Node 24.19.0; Python imports and `gh` available; multi-agent config valid; rental CLI help works |
-| Workspace skill discovery | All six Alfred skills and both Coder skills eligible via isolated CLI local-inventory fallback |
-| Rental script | Python syntax plus offline search/detail/dedup fixtures pass |
-| Repository hygiene | Local documentation links and `git diff --check` checked; original checkout's existing diff preserved byte-for-byte |
+The examples start with guarded exec, workspace-scoped file tools, and agent-scoped session visibility. Automatic skill editing, memory dreaming, and periodic heartbeat work start disabled. Enable additional behavior deliberately and verify the active session's permissions.
 
-Tests used temporary local state and placeholder tokens. They did not send model prompts, Telegram messages, webhook requests, Git pushes, or PRs. A further network-disabled gateway readiness/skill RPC test could not run because the local Docker daemon was stopped after the interruption; it is not counted as a passing test. Skill eligibility was subsequently checked through the CLI's local fallback.
+## Check your installation
 
-## Remaining rehearsal and operational risks
+After setup or migration:
 
-1. A fresh VPS onboarding and managed Tailscale Serve setup still needs end-to-end rehearsal on the intended host. Docker image/config checks do not verify host operator rights, firewall policy, browser identity, or HTTPS routing.
-2. Real model/provider access, Telegram pairing and reminder delivery, webhook completion, exec-review enforcement, and GitHub PR creation remain live integration checks. Schema validity and skill eligibility do not prove those workflows.
-3. Dated workspace fixtures are intentionally historical. Prepare a current daily note and a complete prior ISO week, recompute tracker statistics, and verify the new reminder's destination separately. The existing Demo 1 preparation task owns that live work.
-4. Rental scraping depends on external HTML and availability. The unchanged scraper can emit an empty array after fetch/parsing failures; inspect stderr and do not present that as evidence of no available rentals. Fractional bathroom counts are also reduced to integers by the current scraper.
-5. Guarded exec and separate IDs do not isolate shared credentials or sibling workspaces from an approved broad command. Use separate environments when the trust boundary requires it.
-6. The Docker baseline is pinned; Debian packages and Python transitive dependencies can still change. Record the resulting image digest for each rehearsal and keep a verified off-host backup before migration.
+1. Verify the running version, validate the configuration, and check model authentication and skill eligibility using the deployment guide's commands.
+2. Send a simple message and confirm the expected agent, model, workspace, and response. For the multi-agent setup, check both bots separately.
+3. Test permitted and approval-required operations using a disposable workspace and synthetic data.
+4. If enabling reminders or webhooks, check that the job runs and reaches the intended destination. For Coder, try a disposable repository and inspect the resulting branch and PR.
+5. If enabling managed Tailscale Serve, verify the host's operator permissions, HTTPS route, and browser access before changing SSH access.
 
-## Release-pinned evidence
+## Sample data and rental search
+
+The personal-assistant notes and memory exports contain historical April 2026 fixtures. Customize the persona, timezone, and recipient IDs. Create current daily notes and a complete prior ISO week before trying daily or weekly summaries, and recompute reading statistics from the dated records. Copying these files does not install schedules or import active session history.
+
+Rental search depends on external HTML and site availability. The scraper can return an empty array after a fetch or parsing failure, so inspect stderr before treating an empty result as evidence that no rentals are available. The current scraper also reduces fractional bathroom counts to integers.
+
+## Release-pinned references
 
 - [Release and revision](https://github.com/openclaw/openclaw/releases/tag/v2026.9.5)
 - [Docker installation](https://github.com/openclaw/openclaw/blob/v2026.9.5/docs/install/docker.md) and [upstream Compose](https://github.com/openclaw/openclaw/blob/v2026.9.5/docker-compose.yml)
@@ -66,5 +48,3 @@ Tests used temporary local state and placeholder tokens. They did not send model
 - [Session permission modes](https://github.com/openclaw/openclaw/blob/v2026.9.5/docs/gateway/permission-modes.md)
 - [Automation CLI](https://github.com/openclaw/openclaw/blob/v2026.9.5/docs/cli/cron.md) and [heartbeat contract](https://github.com/openclaw/openclaw/blob/v2026.9.5/docs/gateway/heartbeat.md)
 - [Skills contract](https://github.com/openclaw/openclaw/blob/v2026.9.5/docs/tools/skills.md)
-
-The live comparison used the course's saved September 21 deployment-upgrade report and September 22 Demo 1 preflight. This audit performed no live Hostinger access or changes.

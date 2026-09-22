@@ -31,7 +31,7 @@
           primary: "anthropic/claude-sonnet-5",
           fallbacks: ["openrouter/auto"],
         },
-        // Guarded default. The live instructor demo uses mode: "full" deliberately.
+        // Guarded default: shell commands may require approval.
         // Full exec can reach both workspaces, credentials, and shared mounts.
         tools: { exec: { mode: "ask" }, fs: { workspaceOnly: true } },
       },

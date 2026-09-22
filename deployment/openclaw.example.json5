@@ -24,7 +24,7 @@
     sessions: { visibility: "agent" },
     agentToAgent: { enabled: false },
   },
-  // Keep automatic skill edits and memory dreaming off while learning/rehearsing.
+  // Keep automatic skill edits and memory dreaming off while learning.
   skills: { workshop: { autonomous: { mode: "off" } } },
   plugins: { entries: { "memory-core": { config: { dreaming: { enabled: false } } } } },
 }
