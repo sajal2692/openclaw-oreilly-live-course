@@ -30,8 +30,9 @@ Generate a comprehensive weekly review from the week's daily notes, active proje
 
 ### 1. Determine the Review Period
 
-- Resolve current date and ISO week number
-- If running on Sunday evening or early Monday, review the previous week (Monday-Sunday just completed)
+- Resolve the current date in the principal's timezone from USER.md. Use the requested week when one is specified.
+- On Sunday evening, review the current Monday-Sunday week ending today. On Monday, review the previous complete Monday-Sunday week. For an ambiguous request on another day, establish the intended review week.
+- Derive the filename from the ISO week-year of that review period; dates near New Year can belong to the adjacent ISO year.
 - Compute the date range (e.g., `2026-04-06` to `2026-04-12`)
 
 ### 2. Gather Data
@@ -69,7 +70,7 @@ Read `notes/weekly/YYYY-Www.md` for last week (if it exists) to:
 
 If you have at least 4-5 substantive daily notes, proceed.
 
-If data is sparse (fewer than 3 daily notes with content), use AskUserQuestion to fill gaps. Ask 3-5 questions covering:
+If data is sparse (fewer than 3 daily notes with content), ask the user directly to fill gaps. In an unattended scheduled run, report the missing evidence and leave questions for the next conversation. Cover:
 - Proud moments (always ask, regardless)
 - Accomplishments and milestones
 - Stalled projects and blockers

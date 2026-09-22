@@ -1,477 +1,258 @@
-# Deploying OpenClaw on a Linux VPS
+# Deploying OpenClaw 2026.9.5 on a Linux VPS
 
-A step-by-step guide to getting OpenClaw running 24/7 on a Linux VPS with Docker.
+This guide uses Docker Compose and the official **2026.9.5** release image, with Python and GitHub CLI added for the course skills. It targets a fresh Ubuntu/Debian VPS. The course Hostinger deployment was upgraded from 2026.7.1 separately; follow [Upgrading an existing installation](#upgrading-an-existing-installation) before changing an existing gateway.
 
-**Works on other VPS providers too.** The setup is Docker-based, so any Linux VPS with Docker runs it. Hostinger is just the example provider — DigitalOcean, Linode, Hetzner, AWS Lightsail, and others all work the same way. Only Step 1 (provisioning) is provider-specific, and the public interface name in Step T7 (`eth0` vs `ens3`, etc.) may differ.
-
-## What You Will Have at the End
-
-- A persistent OpenClaw Gateway running on your own VPS
-- Docker-based deployment that survives reboots
-- Secure remote access via SSH tunnel
-- Optional: HTTPS through Tailscale Serve with tokenless tailnet auth (recommended)
+The base recipe runs one gateway container and provides an optional one-shot CLI service. It publishes only `127.0.0.1:18789`. The live instructor deployment has a persistent CLI companion as well; that is an operational choice, not one container per agent.
 
 ## Prerequisites
 
-- A VPS with 4GB+ RAM (Hostinger, DigitalOcean, Hetzner, Linode, etc.)
-- An LLM API key (Anthropic, OpenAI, OpenRouter, Gemini, or any other [supported provider](https://docs.openclaw.ai/providers))
-- Basic comfort with SSH and the command line
+- A Linux VPS with 4 GB or more RAM and room for images, state, and backups
+- Docker Engine and Docker Compose v2
+- SSH access and an LLM provider account/API key
+- A Telegram bot token if you want messaging
 
-## Fast Path (Optional)
+This recipe layers dependencies onto a pre-built image. Upstream documents **at least 6 GB RAM for a full source image build**. The image supplies a compatible Node runtime; native installs need Node `>=24.16.0 <25 || >=26.1.0` for this release.
 
-Two faster alternatives to the manual walkthrough below.
+A Hostinger one-click template is an alternative installation with its own image, paths, ports, and update procedure. Verify those details before applying any commands from this guide. Do not assume it has the same layout.
 
-**Hostinger one-click (Hostinger only).** The [OpenClaw VPS template](https://www.hostinger.com/vps/docker/openclaw) provisions a ready-to-go instance with OpenClaw pre-installed — no SSH or Docker knowledge needed. After provisioning, follow Step 9 to access the Control UI. If the template uses a different port or bind, follow its own documentation for accessing the Control UI.
+## 1. Prepare the VPS
 
-**Setup script (any Docker-capable VPS).** OpenClaw ships a one-shot setup script that handles most of what's below automatically. After Step 3 (clone the repo), run:
-
-```bash
-cd ~/openclaw
-./docker-setup.sh
-```
-
-The script builds the image, generates a gateway token, writes `.env`, runs `openclaw onboard` (model and channel setup), and starts the gateway via Docker Compose. After it finishes, run Steps T1–T7 to put the gateway behind Tailscale (recommended), or use the SSH tunnel from Step 9 for quick access.
-
-The rest of this guide is the manual walkthrough. The fast paths above hide Docker, env, networking, and config behind one command — fine for getting started, but worth understanding before you reach for them, especially if you hit a misconfiguration later or move to a different provider.
-
-## Step 1: Create Your VPS
-
-1. Log in to Hostinger and go to the VPS section
-2. Choose **Plain OS** and select **Ubuntu 24.04**
-3. Set a strong **root password** and add your **SSH key** (recommended for smoother access)
-4. Complete the setup and note your VPS **IP address** from the dashboard
-
-## Step 2: Initial Server Setup
-
-SSH into your VPS as root:
+Provision Ubuntu 24.04 or a supported Debian release, add your SSH key, then connect:
 
 ```bash
 ssh root@YOUR_VPS_IP
-```
-
-Install Docker and essential packages:
-
-```bash
-apt-get update && apt-get install -y git curl ca-certificates
+apt-get update
+apt-get install -y git curl ca-certificates openssl
 curl -fsSL https://get.docker.com | sh
-```
-
-Verify Docker is working:
-
-```bash
 docker --version
 docker compose version
 ```
 
-## Step 3: Clone OpenClaw and Create Directories
+The rest of the guide runs on the VPS as root, except for the laptop SSH tunnel. OpenClaw itself runs as the image's non-root `node` user, uid 1000.
+
+## 2. Get the course recipe and create state directories
 
 ```bash
-git clone https://github.com/openclaw/openclaw.git ~/openclaw
-mkdir -p /root/.openclaw/workspace
-chown -R 1000:1000 /root/.openclaw
-```
-
-The `chown` sets ownership to uid 1000, which matches the container's internal user (`node`).
-
-## Step 4: Configure Environment Variables
-
-```bash
-cd ~/openclaw
-```
-
-Create a `.env` file in the repository root. The course repo provides a fully commented starter at [`deployment/.env.template`](https://github.com/sajal2692/openclaw-oreilly-live-course/blob/main/openclaw_course_code/deployment/.env.template) you can pull onto the VPS:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/sajal2692/openclaw-oreilly-live-course/main/openclaw_course_code/deployment/.env.template -o .env
+git clone https://github.com/sajal2692/openclaw-oreilly-live-course.git ~/openclaw-course
+cd ~/openclaw-course/deployment
+mkdir -p /root/.openclaw/workspace /root/.openclaw-auth-profile-secrets
+chown -R 1000:1000 /root/.openclaw /root/.openclaw-auth-profile-secrets
+chmod 700 /root/.openclaw /root/.openclaw-auth-profile-secrets
+cp .env.template .env
+chmod 600 .env
+openssl rand -hex 32
 nano .env
 ```
 
-Or skip the template and create `.env` from scratch:
+Paste the generated value into `OPENCLAW_GATEWAY_TOKEN`. Fill the provider keys you use and optionally `TELEGRAM_BOT_TOKEN`. Keep `.env` private. The [template](.env.template), [Compose file](docker-compose.yml), and [Dockerfile](Dockerfile.course) are in this directory; no edits to an upstream OpenClaw checkout are needed.
+
+`OPENCLAW_GATEWAY_BIND=lan` makes the listener reachable from Docker's port forwarding **inside the container**. The `127.0.0.1:` host mapping keeps it private on the VPS. The recipe does not publish bridge or Teams ports, and does not mount the Docker socket.
+
+## 3. Build the course image
 
 ```bash
-nano .env
+docker compose config --quiet
+docker compose build openclaw-gateway
 ```
 
-Required variables:
+The Dockerfile pins the upstream release by tag and digest. It adds Python packages in `/opt/course-python` and Debian's `gh` package. Direct Python dependency versions match the upgraded instructor environment; Debian package versions and transitive Python dependencies can vary. This is a student recipe, not a byte-for-byte copy of the instructor image.
 
-```
-OPENCLAW_IMAGE=openclaw:latest
-OPENCLAW_GATEWAY_TOKEN=<generate with: openssl rand -hex 32>
-OPENCLAW_GATEWAY_BIND=lan
-OPENCLAW_GATEWAY_PORT=18789
-OPENCLAW_CONFIG_DIR=/root/.openclaw
-OPENCLAW_WORKSPACE_DIR=/root/.openclaw/workspace
-```
+If GHCR is unavailable, the official Docker Hub mirror is `openclaw/openclaw`. Verify the matching release digest before overriding `OPENCLAW_BASE_IMAGE` through `docker compose build --build-arg`. Avoid floating `latest` tags for a rehearsal.
 
-Optional, only if you plan to install the `gog` companion CLI (Gmail / Google Calendar skills, not covered in this course):
+## 4. Onboard before starting the gateway
 
-```
-GOG_KEYRING_PASSWORD=<generate with: openssl rand -hex 32>
-```
-
-The template additionally has commented-out sections for model provider API keys (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, etc.) and channel tokens (`TELEGRAM_BOT_TOKEN`, `DISCORD_BOT_TOKEN`, etc.). Uncomment whatever you use.
-
-Do not commit this file.
-
-## Step 5: Update docker-compose.yml
-
-The repository includes a Dockerfile but the `docker-compose.yml` needs a few edits.
+Use a one-shot gateway container for pre-start commands. The CLI service shares the gateway network and needs a running gateway.
 
 ```bash
-nano docker-compose.yml
+docker compose run --rm --no-deps --entrypoint node openclaw-gateway \
+  dist/index.js onboard --mode local --no-install-daemon --skip-health
 ```
 
-**Add** `build: .` and `env_file` to the `openclaw-gateway` service (right after the `image:` line):
+Choose the model/provider, token authentication, and workspace `/home/node/.openclaw/workspace`. The host path `/root/.openclaw` is mounted at `/home/node/.openclaw` in the container. Keep the configured gateway token consistent with `.env`; direct config values and environment fallbacks are resolved separately.
 
-```yaml
-services:
-  openclaw-gateway:
-    image: ${OPENCLAW_IMAGE:-openclaw:local}
-    build: .          # add this line
-    env_file:         # add this line
-      - .env          # add this line
-    environment:
-      ...
-```
+Merge the fields from [openclaw.example.json5](openclaw.example.json5) into `/root/.openclaw/openclaw.json`, preserving onboarding's model, auth, and channel settings. This sets the current `agents.entries` roster, explicit workspace, timezone, and a guarded starting exec policy. It disables recurring heartbeats, autonomous Workshop edits, and dreaming for a predictable course starting state.
 
-**Update** the `ports` section to bind to loopback only, so the gateway is not exposed to the public internet:
-
-```yaml
-    ports:
-      - "127.0.0.1:${OPENCLAW_GATEWAY_PORT:-18789}:18789"
-      - "127.0.0.1:${OPENCLAW_BRIDGE_PORT:-18790}:18790"
-```
-
-Both ports are bound to loopback to keep them off the public internet. Port `18789` is the gateway's main WebSocket and Control UI endpoint.
-
-Leave everything else in the file unchanged.
-
-**Why two layers?** `OPENCLAW_GATEWAY_BIND=lan` tells the gateway to listen on all interfaces *inside the container* — this is required so Docker's port-forwarding can reach it (setting it to `loopback` inside Docker breaks host-published access, per the [OpenClaw Docker docs](https://docs.openclaw.ai/install/docker#lan-vs-loopback-docker-compose)). The `127.0.0.1:` prefix on the host-side port mapping is what actually keeps the port off the public internet. Both layers matter: without the prefix, Docker publishes the port on `0.0.0.0` regardless of the internal bind.
-
-## Step 6: Build the Image
+For Telegram, either configure it during onboarding or use the token from `.env`:
 
 ```bash
-docker compose build
+docker compose run --rm --no-deps --entrypoint node openclaw-gateway \
+  dist/index.js channels add --channel telegram --use-env
+docker compose run --rm --no-deps --entrypoint node openclaw-gateway \
+  dist/index.js config validate
 ```
 
-## Step 7: Run Onboarding
+## 5. Install the personal-assistant workspace
 
-Before starting the gateway, run `openclaw onboard` to configure your model provider, channels, workspace, and skills in one guided flow. We do this in a one-shot temp container (`docker compose run --rm`) so the config is fully written to `~/.openclaw/` before the long-lived gateway boots in Step 8. That way the gateway starts cleanly with everything in place: channels active, agents defined, model auth wired.
+For a fresh workspace, copy the **contents**, including hidden files, into the configured directory:
 
 ```bash
-docker compose run --rm openclaw-gateway bash
-openclaw onboard --skip-daemon --skip-health
-exit
+cp -a ../workspaces/personal-assistant/. /root/.openclaw/workspace/
+chown -R 1000:1000 /root/.openclaw/workspace
 ```
 
-The onboarding wizard walks you through:
+Review any onboarding-created `BOOTSTRAP.md`. Remove it only after completing that first-run setup if you intend to keep the supplied persona. For an existing workspace, back up and merge the files you want instead of copying over it.
 
-- **Model and auth** — pick a provider (Anthropic, OpenAI, OpenRouter, Gemini, etc.) and paste your API key. This replaces having to run `openclaw models auth add` separately later.
-- **Workspace** — defaults to `~/.openclaw/workspace`. Accept the default or point at a custom workspace (e.g., one of the templates from `workspaces/` in this repo).
-- **Gateway** — confirm port, bind, and auth settings (these are already set via `.env`, so just accept).
-- **Channels** — optionally add Telegram, Discord, Slack, etc. Bot tokens go in here.
-- **Skills** — install any optional dependencies for skills you want active.
+Customize `USER.md`, `SOUL.md`, `IDENTITY.md`, and `AGENTS.md`. Local tool notes belong in `AGENTS.md` under Tools. Set your timezone and Telegram destination there. The dated notes and memory exports are **historical April 2026 fixtures**; prepare current daily/weekly notes before asking for a live briefing. Copying these Markdown files does not import canonical session history or create schedules.
 
-The two flags above are specific to this Docker-on-VPS setup:
-
-- `--skip-daemon` — skip the systemd / launchd service install. We use Docker Compose for the gateway lifecycle.
-- `--skip-health` — skip the gateway-start and health-check step. We start the gateway in Step 8 via Docker Compose.
-
-**Where are my files?** The container's working directory is `/app` (the OpenClaw source code). Your configuration and workspace are at `/home/node/.openclaw/` inside the container, which maps to `/root/.openclaw/` on the host. You can edit files from either side; they are the same files.
-
-## Step 8: Launch and Verify
+## 6. Start and verify
 
 ```bash
-docker compose up -d
-docker compose logs -f openclaw-gateway
+docker compose up -d --no-build openclaw-gateway
+docker compose ps
+docker compose exec openclaw-gateway openclaw --version
+docker compose exec openclaw-gateway openclaw config validate
+docker compose exec openclaw-gateway openclaw health
+docker compose exec openclaw-gateway openclaw skills check
+docker compose exec openclaw-gateway python3 -c 'import requests, bs4; print(requests.__version__, bs4.__version__)'
+docker compose exec openclaw-gateway gh --version
 ```
 
-You should see:
+The reported OpenClaw version should be `2026.9.5`. `skills check` checks eligibility; a successful skill/model invocation is a separate check. To inspect startup, run `docker compose logs --tail=100 openclaw-gateway` privately.
 
+For Telegram, DM your bot, inspect the request, and approve its code:
+
+```bash
+docker compose exec openclaw-gateway openclaw pairing list telegram
+docker compose exec openclaw-gateway openclaw pairing approve telegram <CODE>
+docker compose exec openclaw-gateway openclaw channels status --probe
 ```
-[gateway] listening on ws://0.0.0.0:18789
-```
 
-Press `Ctrl+C` to stop following the logs. The gateway continues running in the background.
+Verify the sender before approval. When no command owner exists, the CLI's first approval also bootstraps that sender as the command owner. Channel pairing and browser device pairing are separate controls.
 
-## Step 9: Access the Control UI
+## 7. Access the Control UI through SSH
 
-The gateway is bound to loopback and not exposed to the public internet. To access it from your laptop, open an SSH tunnel in a new terminal:
+On your laptop, keep this tunnel running:
 
 ```bash
 ssh -N -L 18789:127.0.0.1:18789 root@YOUR_VPS_IP
 ```
 
-Then open in your browser:
-
-```
-http://localhost:18789/
-```
-
-Paste your gateway token when prompted. This is the value of `OPENCLAW_GATEWAY_TOKEN` from `.env`. You should see the OpenClaw Control UI with WebChat.
-
-Send a message via WebChat. If the agent responds, your deployment is working end-to-end (model auth from Step 7 + gateway from Step 8 + Control UI access from Step 9).
-
-## Recommended: Tailscale Serve for HTTPS and Tokenless Auth
-
-The SSH tunnel approach in Step 9 works, but Tailscale Serve gives you HTTPS, tokenless dashboard auth via tailnet identity, and removes the need to keep an SSH tunnel running. This is also the configuration used on the demo VPS for the live course.
-
-[Tailscale](https://tailscale.com) (free tier) creates a private WireGuard mesh between your devices. **Tailscale Serve** proxies HTTPS traffic from your tailnet hostname to a loopback port on the VPS — so the gateway stays bound to loopback, and Tailscale handles encryption, identity, and routing.
-
-### Step T1: Install Tailscale and enable HTTPS
-
-On the VPS (as root):
+Open `http://localhost:18789/`, enter the gateway token in the connection settings, and retain browser device identity. If a pairing request appears:
 
 ```bash
-curl -fsSL https://tailscale.com/install.sh | sh
-tailscale up
+docker compose exec openclaw-gateway openclaw devices list
+docker compose exec openclaw-gateway openclaw devices approve <REQUEST_ID>
 ```
 
-Follow the printed URL to authenticate the device. Install Tailscale on your laptop as well and join the same tailnet. Note the VPS's **MagicDNS hostname** (e.g., `my-vps.tail-xxxx.ts.net`); you can find it in the Tailscale admin console or by running `tailscale status` on the VPS.
+Approve the exact request after checking it. The 2026.9.5 UI opens with Home chat and the Sessions sidebar. Profile menu → Settings contains Gateway, Channels, Agents, and Automations. Agent files are under Settings → Agents → Files. Send a simple message, verify the response, and check the session's Execution permissions before testing writes or shell commands.
 
-In the [Tailscale admin console](https://login.tailscale.com/admin/dns), enable **HTTPS Certificates** for your tailnet (DNS settings, "Enable HTTPS" toggle). Tailscale will provision a Let's Encrypt cert for your MagicDNS hostname.
+## Optional: OpenClaw-managed Tailscale Serve
 
-### Step T2: Switch the gateway to host networking
+This Linux-only variant provides private HTTPS and verified Tailscale identity for browser authentication. Keep the SSH tunnel path available while setting it up.
 
-In `docker-compose.yml`, the `openclaw-gateway` service needs three changes from the Step 5 layout:
+1. Install Tailscale on the VPS and laptop, join the same tailnet, and enable tailnet HTTPS certificates. On the VPS:
 
-1. Replace the `ports:` block with `network_mode: host` (so the container shares the host's network namespace and "loopback inside the container" is the same as `127.0.0.1` on the host).
-2. Bind-mount the Tailscale CLI and socket so the gateway can call `tailscale whois` to verify the tailnet identity of incoming requests.
-3. Change the `openclaw-cli` service from `network_mode: "service:openclaw-gateway"` to `network_mode: host` so it joins the same host namespace.
+   ```bash
+   curl -fsSL https://tailscale.com/install.sh | sh
+   tailscale up
+   tailscale status
+   ```
 
-```yaml
-  openclaw-gateway:
-    image: ${OPENCLAW_IMAGE:-openclaw:local}
-    build: .
-    env_file:
-      - .env
-    network_mode: host    # replaces the `ports:` block from Step 5
-    volumes:
-      - ${OPENCLAW_CONFIG_DIR}:/home/node/.openclaw
-      - ${OPENCLAW_WORKSPACE_DIR}:/home/node/.openclaw/workspace
-      - /var/run/tailscale:/var/run/tailscale       # add
-      - /usr/bin/tailscale:/usr/bin/tailscale:ro    # add
-    # ... rest of service unchanged; remove the `ports:` block entirely
-```
+2. In `docker-compose.yml`, remove the gateway's entire `ports` block and add `network_mode: host`. Change the CLI service's `network_mode` to `host` too. In the shared `runtime-volumes` list, add:
 
-Apply change #3 to the `openclaw-cli` block as well:
+   ```yaml
+   - /var/run/tailscale:/var/run/tailscale
+   - /usr/bin/tailscale:/usr/bin/tailscale:ro
+   ```
 
-```yaml
-  openclaw-cli:
-    image: ${OPENCLAW_IMAGE:-openclaw:local}
-    network_mode: host    # was: network_mode: "service:openclaw-gateway"
-    # ... rest of service unchanged
-```
+   Verify that the binary exists at this path and is compatible with the container. These mounts give the gateway access to the host Tailscale daemon. They are part of the deployment's trust boundary.
 
-Both Tailscale bind-mounts are safe to add: the Tailscale socket is `0666` and the binary is a statically linked Go executable.
+3. Set `OPENCLAW_GATEWAY_BIND=loopback` in `.env`. Merge these fields into the existing `gateway` block in `/root/.openclaw/openclaw.json`, retaining its token and other settings:
 
-### Step T3: Switch the gateway bind mode to loopback
+   ```json5
+   {
+     gateway: {
+       bind: "loopback",
+       auth: { mode: "token", allowTailscale: true },
+       tailscale: { mode: "serve" },
+       controlUi: { allowedOrigins: ["https://YOUR-HOST.YOUR-TAILNET.ts.net"] },
+     },
+   }
+   ```
 
-In `.env`, change:
+4. Managed Serve needs operator permission on the Tailscale daemon for the gateway's host-mapped uid (1000 in this recipe). Inspect `getent passwd 1000`, assign operator rights to that account with `tailscale set --operator=<HOST_ACCOUNT>`, and verify the container can manage Serve. Granting these rights lets that account administer Tailscale on the host. If you cannot grant them, keep the SSH tunnel or use an externally managed proxy with token authentication.
 
-```
-OPENCLAW_GATEWAY_BIND=loopback
-```
+5. Validate and recreate the container:
 
-With host networking, `loopback` means the host's `127.0.0.1`. The gateway is no longer reachable from any non-loopback interface — only Tailscale Serve can proxy to it.
+   ```bash
+   docker compose config --quiet
+   docker compose run --rm --no-deps --entrypoint node openclaw-gateway dist/index.js config validate
+   docker compose up -d --no-build --force-recreate openclaw-gateway
+   docker compose logs --tail=100 openclaw-gateway
+   tailscale serve status
+   ```
 
-### Step T4: Enable tokenless tailnet auth
+Open the private HTTPS URL from your tailnet-connected laptop. **Do not manually run `tailscale serve --bg ...18789` for this flow.** OpenClaw owns a foreground Serve claim pointing to a dedicated listener and verifies identity through `tailscale whois`. The ordinary gateway listener still requires gateway authentication. Verified managed Serve can skip the browser's bootstrap pairing round trip, but still requires browser device identity.
 
-Edit `/root/.openclaw/openclaw.json` and merge the fields below into the existing `gateway` block. Do not paste over the whole file: `openclaw.json` already has many other keys (model auth, agents, channels) that must stay intact. If you have a coding agent like Claude Code or Cursor handy, ask it to merge these fields into the existing file. Otherwise, edit by hand and add only the new keys (`auth.allowTailscale`, `controlUi.allowedOrigins`, `trustedProxies`) without disturbing what is already there.
+An existing route may conflict with managed Serve. Inspect the reported hostname, handler, and owner before changing it. A manually managed route to port 18789 is generic proxy ingress, requires narrow `trustedProxies` configuration and normal token/password auth, and does not become tokenless by setting `allowTailscale`.
 
-Replace the hostname in `allowedOrigins` with your own MagicDNS hostname (with `https://` and no trailing slash). For example, if `tailscale status` shows `my-vps.tail-a1b2.ts.net`, the origin is `https://my-vps.tail-a1b2.ts.net`.
+If you restrict public SSH later, first verify a second SSH connection over the tailnet and a provider-console recovery path. Use your actual network interface and firewall rules. Ordinary `ssh root@<tailnet-host>` is SSH over Tailscale; it does not by itself enable the separate Tailscale SSH feature.
 
-```json
-{
-  "gateway": {
-    "auth": {
-      "mode": "token",
-      "token": "<your existing token>",
-      "allowTailscale": true
-    },
-    "controlUi": {
-      "allowedOrigins": [
-        "https://<hostname>.<tailnet>.ts.net"
-      ]
-    },
-    "trustedProxies": ["127.0.0.1/32", "::1/128"]
-  }
-}
-```
+## Persistent state and backups
 
-What each piece does:
+| Data | Default container location |
+|---|---|
+| Gateway config | `/home/node/.openclaw/openclaw.json` |
+| Shared runtime state | `/home/node/.openclaw/state/openclaw.sqlite` |
+| Per-agent sessions, transcripts, model auth, memory index | `/home/node/.openclaw/agents/<agentId>/agent/openclaw-agent.sqlite` |
+| Persona, skills, Markdown notes | The configured workspace |
+| Compatibility auth key material | `/home/node/.config/openclaw` (separate mount) |
 
-- `auth.allowTailscale: true` lets the gateway accept Tailscale identity headers (`tailscale-user-login`) instead of a token, but only when the request arrived via Tailscale Serve (loopback socket plus Tailscale's forwarded headers, verified against `tailscale whois`). The gateway token is still kept for non-browser clients (CLI, channels).
-- `controlUi.allowedOrigins` is a strict allowlist; the dashboard refuses WebSocket upgrades whose `Origin` header is not on the list. Add your tailnet HTTPS URL.
-- `trustedProxies` tells the gateway that 127.0.0.1 is a trusted proxy (Tailscale Serve, running on the same host). Without this, the gateway logs a "proxy headers from untrusted address" warning on every Serve request.
+Legacy JSON/JSONL artifacts can remain after migration. Their presence does not make them the active store. A workspace backup alone does not capture the runtime databases, credentials, devices, or automation state.
 
-### Step T5: Restart the gateway and start Tailscale Serve
+For a complete cold backup, stop every container/service writing these mounts, archive the full host state and external mounts, then restart. Include the Compose files, `.env`, Dockerfile, dependency pins, image digest or image export, and any added SSH/GitHub/Tailscale configuration. Keep the backup private, verify its checksum and extraction, and keep an off-VPS copy. Do not copy only live SQLite main files while WAL writes are active.
+
+## Upgrading an existing installation
+
+1. Record the **running** image digest and `openclaw --version`, mounts, config, and enabled jobs. The instructor's old `/root/openclaw` checkout stayed on 2026.7.1 after its image upgrade; its Git version does not identify the running runtime.
+2. Make and verify a complete cold backup of the old image, state, external mounts, and deployment files. Preserve a matching image/state recovery point.
+3. Build or pull the chosen pinned candidate. Rehearse against a restored copy with outbound channels, schedules, and hooks disabled and network isolated. Review Doctor's changes before cutover.
+4. The 2026.7.1 → 2026.9.5 transition needs migration of legacy configuration/session policy and state. With all writers stopped, run the **candidate image** against the intended state copy:
+
+   ```bash
+   docker compose run --rm --no-deps --entrypoint node openclaw-gateway \
+     dist/index.js doctor --fix --non-interactive
+   docker compose run --rm --no-deps --entrypoint node openclaw-gateway \
+     dist/index.js config validate
+   ```
+
+   Doctor mutates state. Expect `agents.list` → `agents.entries`, SQLite imports, exec-policy migration, and Tools notes merged into `AGENTS.md`. Inspect unreadable legacy auth sources rather than deleting them.
+5. Recreate the gateway with the candidate, then verify version, readiness, model auth discovery, a model response, channels, skills, and intended scheduling. Confirm enabled jobs and delivery destinations before restoring unattended work.
+6. If recovery is needed, stop the candidate and restore the **old image and its matching state together**. Swapping only the image after a database migration is not a complete rollback.
+
+Routine later image replacements can run startup-safe migrations; do not assume every upgrade needs Doctor repair. Review that release's migration notes. Do not use `git pull`, an in-container package update, or an Atomic Update's private validation copy as a substitute for this Docker image and backup process.
+
+## Operations and troubleshooting
+
+Run these from this deployment directory:
 
 ```bash
-cd ~/openclaw
-docker compose up -d --force-recreate openclaw-gateway
-tailscale serve --bg --https=443 http://127.0.0.1:18789
-tailscale serve status
-```
-
-`--force-recreate` ensures the gateway container is rebuilt with the new `network_mode: host` and the Tailscale bind-mounts. Without it, compose sometimes keeps the old container if it thinks the service definition has not changed.
-
-The status output should look like:
-
-```
-https://<hostname>.<tailnet>.ts.net (tailnet only)
-|-- / proxy http://127.0.0.1:18789
-```
-
-> Tailscale Serve persists across reboots once configured this way. As an alternative, OpenClaw can manage Serve itself by setting `gateway.tailscale.mode: "serve"` in `openclaw.json`; the manual command above is shown here because it makes the proxy chain visible and easy to inspect with `tailscale serve status`.
-
-### Step T6: Approve the first device pairing
-
-Open `https://<hostname>.<tailnet>.ts.net/` in your browser. You will see a "pairing required" prompt — this is expected on the first connection from any new browser.
-
-Approve it once from inside the gateway container:
-
-```bash
-docker compose exec openclaw-gateway openclaw devices pending
-docker compose exec openclaw-gateway openclaw devices approve <requestId>
-```
-
-Reload the browser tab. You should land in the Control UI directly, no token prompt — your tailnet identity authenticates the connection, and the device is now paired.
-
-**Why pairing is required:** OpenClaw's dashboard binds to the browser's persistent device identity (a key pair stored in IndexedDB). Tokenless tailnet auth replaces only the *shared-secret* layer; device pairing is a separate layer that always applies. The first browser hit creates a pending request, and one CLI approval is all you need per browser. Pairing survives reloads, restarts, and reboots.
-
-### Step T7: Lock SSH down to Tailscale only
-
-A public SSH port on the open internet is constantly scanned. Bots sweep the IPv4 space looking for port 22, then attempt credential stuffing, brute force against weak passwords, and exploits against unpatched `sshd` versions. Even with key-only auth, the surface is constant noise in your logs and a single misconfigured password (or a future `sshd` CVE) is all it takes to lose the box.
-
-Putting SSH behind Tailscale removes that surface entirely. With UFW dropping all non-`tailscale0` traffic, port 22 simply does not respond to the public internet — there is nothing for bots to attack. Only devices that have authenticated to your tailnet (with WireGuard keys tied to your identity provider) can even reach the port. Tailscale's own auth runs underneath SSH, so an attacker would have to compromise your tailnet identity *and* your SSH credentials to get a shell.
-
-This matters especially if SSH password auth is enabled on the VPS. With public SSH, a weak password is a brute-force target around the clock. Behind Tailscale, the password never sees the public internet at all.
-
-To restrict SSH to your tailnet:
-
-```bash
-apt-get install -y ufw
-
-# Allow all traffic over Tailscale
-ufw allow in on tailscale0
-
-# Keep public SSH as a fallback until you verify Tailscale SSH works
-ufw allow in on eth0 to any port 22
-
-ufw default deny incoming
-ufw default allow outgoing
-ufw enable
-```
-
-Verify Tailscale SSH from your laptop (MagicDNS resolves the hostname automatically — no IP needed):
-
-```bash
-ssh root@<hostname>
-```
-
-Once confirmed, drop the public-SSH fallback rule:
-
-```bash
-ufw delete allow in on eth0 to any port 22
-```
-
-The VPS is now reachable only through your tailnet. Both SSH and the dashboard are gated by tailnet identity, and the gateway never exposes a port on a public interface.
-
-## What Persists Where
-
-| Component | Location | Notes |
-|-----------|----------|-------|
-| Gateway config | `/root/.openclaw/` | Includes `openclaw.json`, tokens |
-| Model auth | `/root/.openclaw/` | OAuth tokens, API keys |
-| Agent workspace | `/root/.openclaw/workspace/` | SOUL.md, AGENTS.md, memory, skills |
-| Sessions | `/root/.openclaw/` | Chat history |
-| Docker image | Container filesystem | Rebuilt on `docker compose build` |
-
-**Back up `~/.openclaw/`.** Everything important — workspace, sessions, model credentials, gateway tokens, paired devices — lives there. Periodically copy it off the VPS (rsync to another host, or scp to your laptop) so you can rebuild from scratch without losing state. The Docker image is reproducible from `docker compose build`; `~/.openclaw/` is not.
-
-## Updating OpenClaw
-
-```bash
-cd ~/openclaw
-git pull
-docker compose build
-docker compose up -d
-```
-
-If `git pull` reports a conflict on `docker-compose.yml`, that is your local edits from Step 5 (and Step T2 if you took the Tailscale path) clashing with upstream changes. `git stash`, pull, then reapply your edits, or resolve the conflict by hand.
-
-## Troubleshooting
-
-- **Build fails with OOM**: Add swap or upgrade VPS plan
-- **Cannot access Control UI (SSH-tunnel path)**: Check your SSH tunnel is running and the gateway token is correct
-- **Cannot access Control UI (Tailscale Serve path)**: Check Tailscale is connected on both sides (`tailscale status`), `tailscale serve status` shows the proxy entry, and your tailnet HTTPS hostname is listed in `gateway.controlUi.allowedOrigins`
-- **`tailscale serve` fails with a certificate error**: HTTPS Certificates were just enabled in the admin console and Let's Encrypt has not finished provisioning the cert yet. Wait a minute and rerun the command.
-- **Dashboard loads but the WebSocket immediately closes**: The tailnet hostname is missing from `gateway.controlUi.allowedOrigins`, or the entry has a trailing slash or the wrong scheme (`http://` instead of `https://`). The check is exact-match.
-- **"pairing required" on the dashboard**: Expected on the first browser connection per device. Approve once: `docker compose exec openclaw-gateway openclaw devices pending` then `... openclaw devices approve <requestId>`
-- **Gateway not starting**: Check logs with `docker compose logs -f openclaw-gateway`
-- **Model auth fails**: Re-run `openclaw models auth add` inside the container (or re-run `openclaw onboard` to step through everything again)
-
-## Quick Notes and Handy Commands
-
-### Enter a shell inside the running container
-
-```bash
-cd ~/openclaw
+# A shell in the existing gateway
 docker compose exec openclaw-gateway bash
+
+# CLI service, when the gateway is already running
+docker compose run --rm openclaw-cli health
+
+# Read-only diagnostics; review output privately
+docker compose exec openclaw-gateway openclaw models status
+docker compose exec openclaw-gateway openclaw security audit
+
+# Apply env, image, mounts, or networking changes
+docker compose up -d --no-build --force-recreate openclaw-gateway
 ```
 
-Use `exec` when the gateway is already running (it attaches to the live container). Use `docker compose run --rm openclaw-gateway bash` only when the gateway is stopped; `run` creates a new temporary container that will not share state with a running gateway.
+A one-shot `compose run` **shares the configured bind mounts**. It is a separate process, not an isolated state copy. Never run destructive repair concurrently with the gateway.
 
-### Find where a credential or config value is stored
+- For config changes, validate first and follow restart requirements; `compose restart` does not reload `.env`.
+- For missing model auth, inspect `models status` and use onboarding/auth commands. Do not grep credentials onto a teaching screen.
+- For dashboard connection failures, check the SSH tunnel or managed Serve claim, exact allowed origin, auth, and browser identity.
+- For skill eligibility failures, inspect `skills check` and verify dependencies in the actual execution environment. A separate agent sandbox needs its own Python/CLI dependencies.
+- For Telegram reminders, verify job execution **and** delivery separately. See [automation examples](../automation/README.md).
 
-`openclaw onboard` and `openclaw models auth add` write credentials to different files depending on the provider and flow. If you cannot find a value in `openclaw.json`, grep the whole `.openclaw` directory:
+## Release-pinned references
 
-```bash
-# Search for a specific key prefix (e.g., OpenRouter keys start with sk-or-)
-grep -r "sk-or-" ~/.openclaw/ 2>/dev/null
-
-# Search case-insensitively for a provider name
-grep -ri "openrouter" ~/.openclaw/ 2>/dev/null
-```
-
-Auth profiles created by `onboard` typically live in `~/.openclaw/agents/<agent-id>/auth-profiles.json`. The main config is in `~/.openclaw/openclaw.json`, and environment variables can be added to `~/.openclaw/.env`.
-
-### View live gateway logs
-
-```bash
-docker compose logs -f openclaw-gateway
-```
-
-### Restart the gateway
-
-```bash
-docker compose restart openclaw-gateway
-```
-
-### Add a messaging channel
-
-OpenClaw ships an interactive wizard for adding messaging channel accounts (Telegram, Discord, Slack, Signal, iMessage, etc.). Run it from inside the container:
-
-```bash
-docker compose exec openclaw-gateway bash
-openclaw channels add
-```
-
-The wizard prompts for the channel, credentials (bot token, private key, etc.), an optional display name, and can bind the account to a specific agent in one step.
-
-Non-interactive form (useful for scripts):
-
-```bash
-openclaw channels add --channel telegram --token <bot-token>
-```
-
-Check status and tail logs:
-
-```bash
-openclaw channels list
-openclaw channels status
-openclaw channels logs --channel all
-```
-
-See per-channel setup notes in the [OpenClaw channel docs](https://docs.openclaw.ai/channels).
+- [Docker installation](https://github.com/openclaw/openclaw/blob/v2026.9.5/docs/install/docker.md)
+- [Managed Tailscale authentication](https://github.com/openclaw/openclaw/blob/v2026.9.5/docs/gateway/tailscale.md)
+- [Workspace contract](https://github.com/openclaw/openclaw/blob/v2026.9.5/docs/concepts/agent-workspace.md)
+- [Doctor migrations](https://github.com/openclaw/openclaw/blob/v2026.9.5/docs/cli/doctor/state-migrations.md)
+- [Session permissions](https://github.com/openclaw/openclaw/blob/v2026.9.5/docs/gateway/permission-modes.md)

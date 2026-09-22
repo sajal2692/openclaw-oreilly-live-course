@@ -1,0 +1,51 @@
+# Run from this directory. See linux-vps-guide.md before onboarding.
+services:
+  openclaw-gateway:
+    image: ${OPENCLAW_IMAGE:-openclaw:2026.9.5-course}
+    build:
+      context: .
+      dockerfile: Dockerfile.course
+    env_file: .env
+    environment: &runtime-environment
+      HOME: /home/node
+      OPENCLAW_HOME: /home/node
+      OPENCLAW_STATE_DIR: /home/node/.openclaw
+      OPENCLAW_CONFIG_PATH: /home/node/.openclaw/openclaw.json
+      OPENCLAW_CONFIG_DIR: /home/node/.openclaw
+      OPENCLAW_WORKSPACE_DIR: /home/node/.openclaw/workspace
+      OPENCLAW_GATEWAY_PORT: "18789"
+      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN:?Set OPENCLAW_GATEWAY_TOKEN in .env}
+      TZ: ${OPENCLAW_TZ:-America/Vancouver}
+    volumes: &runtime-volumes
+      - ${OPENCLAW_CONFIG_DIR:?Set OPENCLAW_CONFIG_DIR}:/home/node/.openclaw
+      - ${OPENCLAW_WORKSPACE_DIR:?Set OPENCLAW_WORKSPACE_DIR}:/home/node/.openclaw/workspace
+      - ${OPENCLAW_AUTH_PROFILE_SECRET_DIR:?Set OPENCLAW_AUTH_PROFILE_SECRET_DIR}:/home/node/.config/openclaw
+    ports:
+      - "127.0.0.1:${OPENCLAW_GATEWAY_PORT:-18789}:18789"
+    cap_drop: [NET_RAW, NET_ADMIN]
+    security_opt: ["no-new-privileges:true"]
+    init: true
+    restart: unless-stopped
+    command: ["node", "dist/index.js", "gateway", "--bind", "${OPENCLAW_GATEWAY_BIND:-lan}", "--port", "18789"]
+    healthcheck:
+      test: ["CMD", "node", "dist/docker-healthcheck.js"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Optional one-shot CLI. It shares the running gateway's network and state.
+  openclaw-cli:
+    profiles: [tools]
+    image: ${OPENCLAW_IMAGE:-openclaw:2026.9.5-course}
+    network_mode: "service:openclaw-gateway"
+    env_file: .env
+    environment: *runtime-environment
+    volumes: *runtime-volumes
+    cap_drop: [NET_RAW, NET_ADMIN]
+    security_opt: ["no-new-privileges:true"]
+    stdin_open: true
+    tty: true
+    init: true
+    entrypoint: ["node", "dist/index.js"]
+    depends_on: [openclaw-gateway]

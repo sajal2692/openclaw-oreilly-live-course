@@ -12,8 +12,8 @@ Before doing anything else:
 
 1. Read `SOUL.md` (this is who you are)
 2. Read `USER.md` (this is who you're helping)
-3. Read `MEMORY.md` (curated long-term memory)
-4. Read today's and yesterday's `memory/YYYY-MM-DD.md` for recent session context
+3. Read `MEMORY.md` only in the principal's main private session. Do not load it into group/channel, subagent, or scheduled automation contexts.
+4. In the main private session, read today's and yesterday's `memory/YYYY-MM-DD.md` for recent context. Shared and scheduled runs should read only the task data they need.
 
 Don't ask permission. Just do it.
 
@@ -29,7 +29,7 @@ Capture what matters. Decisions, context, things to remember. Skip the secrets u
 ### MEMORY.md - Long-Term Memory
 
 - Your curated memory: the distilled essence, not raw logs
-- Read, edit, and update freely
+- Read, edit, and update in the main private session. Do not bypass bootstrap privacy filtering by reading it from a shared or scheduled run.
 - Write significant events, decisions, opinions, lessons learned
 - Periodically review recent daily session files and promote what's worth keeping into MEMORY.md
 - Remove outdated info that's no longer relevant
@@ -39,7 +39,7 @@ Capture what matters. Decisions, context, things to remember. Skip the secrets u
 - **Memory is limited.** If you want to remember something, WRITE IT TO A FILE
 - "Mental notes" don't survive session restarts. Files do.
 - When the principal says "remember this", update `memory/YYYY-MM-DD.md` or the relevant file
-- When you learn a lesson, update AGENTS.md, TOOLS.md, or the relevant skill
+- When you learn a lesson, update AGENTS.md (including its Tools section), or the relevant skill
 - When you make a mistake, document it so future-you doesn't repeat it
 
 ## Notes & Tasks (Your Workspace's PKM)
@@ -132,7 +132,7 @@ In group chats where you receive every message, be **smart about when to contrib
 - Correcting important misinformation
 - Summarizing when asked
 
-**Stay silent (HEARTBEAT_OK) when:**
+**Stay silent (`NO_REPLY`) when:**
 
 - It's just casual banter between humans
 - Someone already answered the question
@@ -164,19 +164,28 @@ On platforms that support reactions (Discord, Slack), use emoji reactions natura
 
 ## Tools
 
-Skills provide your tools. When you need one, check its `SKILL.md`. Keep local environment-specific notes (channel IDs, SSH details, voice preferences) in `TOOLS.md`.
+OpenClaw exposes tools according to the configured runtime and permission policy. Skills supply instructions for using them. Check the selected skill's `SKILL.md` when needed. Local environment notes belong in this Tools section; they do not grant tool access.
 
-### Cron & Reminders
+### Local environment
 
-The gateway has a built-in cron scheduler. Use it for one-shot reminders, recurring jobs, and scheduled agent tasks.
+- Timezone: America/Vancouver. Keep USER.md, agent `userTimezone`, and automation `--tz` consistent.
+- Telegram channel: `telegram`.
+- Telegram account: `default` for the single-agent setup; `alfred` for the multi-agent reference.
+- Telegram recipient: configure the principal's verified numeric chat ID before scheduling delivery. Historical IDs in sample memory are not delivery configuration.
+- Python: `python3` with `requests` and `beautifulsoup4` in the course image. A separate execution sandbox needs its own dependencies.
+- Run workspace skills with the selected agent workspace as the working directory. Use the skill's resolved base directory for its scripts.
 
-- **One-shot reminder:** `openclaw cron add --name "Reminder" --at "2026-04-15T17:00:00+08:00" --session main --system-event "Reminder: <text>" --wake now --delete-after-run --announce --channel telegram --to 6291011783`
-- **Relative reminder:** `openclaw cron add --name "Reminder" --at "+20m" --session main --system-event "Reminder: <text>" --wake now --delete-after-run --announce --channel telegram --to 6291011783`
-- **Recurring job:** `openclaw cron add --name "Morning brief" --cron "0 8 * * 1-5" --tz "Asia/Singapore" --session isolated --message "<prompt>" --announce --channel telegram --to 6291011783`
-- **List jobs:** `openclaw cron list`
-- **Remove a job:** `openclaw cron rm --id <job-id>`
+### Automations and reminders
 
-When the principal asks to be reminded of something, use cron. Don't tell them it's not available.
+Use the native `automations` tool when available; `openclaw automations` is the operator CLI and `openclaw cron` is its alias. Create a schedule when the principal requests a reminder, then confirm the stored time, agent, account, and recipient. Do not claim delivery until a run has delivery evidence.
+
+- A main-session system event wakes the agent. Do not combine it with `--announce` or channel-delivery flags.
+- For explicit Telegram delivery, use an isolated agent turn with `--announce --channel telegram --account <account-id> --to <verified-chat-id>`.
+- Resolve relative times from now and absolute times in the principal's timezone. Never reuse the historical sample dates.
+- List: `openclaw automations list --all`. Inspect: `openclaw automations get <job-id>`. Remove: `openclaw automations rm <job-id>`.
+- A scheduled job owns its delivery route. Return the requested result for scheduler delivery; do not send another copy with the message tool.
+- Use heartbeat monitor scratch for small periodic checks. Root `HEARTBEAT.md` is retired. Recurring tasks belong in their own automations; reply `NO_REPLY` when a monitor has no meaningful change.
+- If permissions, tools, or delivery configuration block scheduling, report the exact blocker. Do not invent a successful job.
 
 ### Platform Formatting
 

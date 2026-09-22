@@ -66,11 +66,9 @@ How did the day go?
 
 **If the conversation is already happening on Telegram (or any messaging channel):** just reply with the review directly. Do not use the `message` tool. Do not mention how or where you are delivering it. Just send the content.
 
-**If triggered by a cron job or automation (no active conversation):** use the `message` tool:
-- `action`: `send`
-- `target`: <Telegram chat ID from TOOLS.md>
-- `channel`: `telegram`
-- `message`: the formatted review
+**If triggered by a scheduled automation:** return the formatted review as the final reply. The job's explicit delivery configuration owns the Telegram account and recipient. Do not independently send another copy with the `message` tool.
+
+If the principal explicitly requests a separate message outside a scheduled job, use the verified destination from the `AGENTS.md` Tools section and the available message tool. Do not infer a recipient from sample memory exports. If delivery is unavailable, save the review in today's daily note and report the failure; saving a file is not delivery.
 
 ### 5. Reconcile After Response
 

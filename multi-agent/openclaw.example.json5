@@ -1,100 +1,71 @@
 {
-  // Multi-agent gateway config (Demo 7 reference).
-  //
-  // Two agents on one gateway, each bound to its own Telegram bot:
-  //   - alfred: personal assistant persona (personal-assistant workspace) on @alfred_bot
-  //   - coder:  engineer persona (coding-agent workspace) on @coder_bot
-  //
-  // Before using:
-  //   1. Copy ../workspaces/personal-assistant to ~/.openclaw/workspace-alfred
-  //   2. Copy ../workspaces/coding-agent to ~/.openclaw/workspace-coder
-  //   3. Create two Telegram bots via @BotFather, put tokens in .env
-  //   4. Point OpenClaw at this config (or merge into ~/.openclaw/openclaw.json)
-  //   5. DM each bot to get a pairing code, then approve from the host with
-  //      `openclaw pairing approve telegram <CODE>` (or via `docker compose
-  //      exec openclaw-gateway openclaw pairing approve telegram <CODE>`).
-  //
-  // See README.md in this folder for the full walkthrough.
-
+  // OpenClaw 2026.9.5, Demo 6: two independently routed personas.
+  // Merge with deployment/openclaw.example.json5 and onboarding config.
+  // This fragment does not replace gateway authentication or provider auth.
   agents: {
-    // Shared defaults: model, providers, heartbeat. Agents inherit these unless
-    // overridden per-agent under agents.list[].
+    ownership: "explicit",
     defaults: {
+      userTimezone: "America/Vancouver",
+      systemAgent: { agentId: "alfred" },
+      heartbeat: { every: "0m", agentId: "alfred" },
       models: {
         "openrouter/auto": { alias: "OpenRouter" },
         "openrouter/anthropic/claude-sonnet-4.6": {},
+        "anthropic/claude-sonnet-5": { alias: "sonnet" },
       },
       model: {
         primary: "openrouter/anthropic/claude-sonnet-4.6",
         fallbacks: ["openrouter/auto"],
       },
     },
-
-    // One entry per agent. Each agent gets its own workspace, auth, sessions.
-    // Per-agent blocks below override the defaults above. They can narrow
-    // or redirect, but cannot expand beyond the global trust boundary.
-    list: [
-      {
-        id: "alfred",
-        workspace: "~/.openclaw/workspace-alfred",
-        // No overrides; alfred inherits everything from defaults.
+    // 2026.9.5 uses a map keyed by agent ID, not the retired agents.list array.
+    entries: {
+      alfred: {
+        workspace: "/home/node/.openclaw/workspace-alfred",
       },
-      {
-        id: "coder",
-        workspace: "~/.openclaw/workspace-coder",
-
-        // Turn heartbeat off for this agent; coder acts only when DM'd.
+      coder: {
+        workspace: "/home/node/.openclaw/workspace-coder",
+        // 0m disables recurring heartbeat polls; targeted event wakes can still run.
         heartbeat: { every: "0m" },
-
-        // Swap to a coding-optimized model. Kimi K2.6 is strong at code,
-        // cheap per token, and has wide context. Fallback stays on auto.
         model: {
-          primary: "openrouter/moonshotai/kimi-k2.6",
+          primary: "anthropic/claude-sonnet-5",
           fallbacks: ["openrouter/auto"],
         },
-
-        // DEMO-SPECIFIC exec setting: full-autopilot so the coder can
-        // branch / commit / push / gh pr create without approval prompts.
-        // For production use, prefer:
-        //   tools: { exec: { security: "allowlist", ask: "on-miss" } }
-        // and widen the allowlist as the agent proves itself on routine
-        // commands. With security: "full" the agent can run any shell
-        // command the container user can run, so the real sandbox here
-        // is the Docker container the gateway runs in (per the deployment
-        // guide). Do not use security: "full" if the gateway is running
-        // directly on a host without container isolation.
-        tools: { exec: { security: "full", ask: "off" } },
+        // Guarded default. The live instructor demo uses mode: "full" deliberately.
+        // Full exec can reach both workspaces, credentials, and shared mounts.
+        tools: { exec: { mode: "ask" }, fs: { workspaceOnly: true } },
       },
-    ],
+    },
   },
+  tools: {
+    exec: { mode: "ask" },
+    fs: { workspaceOnly: true },
+    sessions: { visibility: "agent" },
+    agentToAgent: { enabled: false },
+  },
+  skills: { workshop: { autonomous: { mode: "off" } } },
+  plugins: { entries: { "memory-core": { config: { dreaming: { enabled: false } } } } },
 
-  // Routing rules. Inbound messages are matched top-down; first match wins.
-  // Here: messages arriving on the 'alfred' Telegram account go to the alfred
-  // agent; messages on the 'coder' account go to the coder agent.
+  // These rules have the same specificity and disjoint account IDs.
+  // OpenClaw generally chooses the most specific matching binding.
   bindings: [
-    {
-      agentId: "alfred",
-      match: { channel: "telegram", accountId: "alfred" },
-    },
-    {
-      agentId: "coder",
-      match: { channel: "telegram", accountId: "coder" },
-    },
+    { agentId: "alfred", match: { channel: "telegram", accountId: "alfred" } },
+    { agentId: "coder", match: { channel: "telegram", accountId: "coder" } },
   ],
-
   channels: {
     telegram: {
       enabled: true,
-      // Two separate Telegram bot accounts, keyed by accountId.
-      // accountId values match the bindings above.
+      defaultAccount: "alfred",
       accounts: {
         alfred: {
           botToken: "${ALFRED_BOT_TOKEN}",
           dmPolicy: "pairing",
+          groupPolicy: "disabled",
         },
         coder: {
           botToken: "${CODER_BOT_TOKEN}",
           dmPolicy: "pairing",
+          groupPolicy: "disabled",
         },
       },
     },

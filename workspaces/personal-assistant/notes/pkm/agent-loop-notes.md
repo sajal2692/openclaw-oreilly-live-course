@@ -30,7 +30,7 @@ It's not the framework that's "intelligent". It's the model. The framework is pl
 ## Where Frameworks Differ
 
 - **Tool definition format:** OpenAI function-calling vs Anthropic tool-use vs MCP. Same underlying idea, different schemas.
-- **Memory:** Some frameworks (LangChain, etc.) impose structured memory abstractions. Others (PI / OpenClaw) keep it minimal. The agent reads and writes files directly.
+- **Memory:** Some frameworks (LangChain, etc.) impose structured memory abstractions. OpenClaw combines workspace Markdown with canonical SQLite runtime state. In 2026.9.5 its embedded runtime is OpenClaw-owned; PI is historical context. The agent can read and write workspace files through its permitted tools.
 - **Compaction:** When context fills up, you have to compress prior turns. Strategies vary.
 - **Multi-agent orchestration:** Some frameworks build hierarchies; others stay flat.
 
